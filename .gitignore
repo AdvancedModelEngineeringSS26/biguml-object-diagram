@@ -2,3 +2,7 @@ node_modules
 *.log
 .idea
 .DS_Store
+client/lerna-debug.log*
+*.hash
+client/.nx
+client/package.json

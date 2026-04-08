@@ -139,6 +139,7 @@ export class BigGlspVSCodeConnector<
         this.onDidRegisterEmitter.fire(client);
 
         // Initialize glsp client
+        await this.options.server.start();
         const glspClient = await this.options.server.glspClient;
         toDispose.push(client.webviewEndpoint.initialize(glspClient));
         toDispose.unshift(

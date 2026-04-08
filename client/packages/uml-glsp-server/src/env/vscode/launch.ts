@@ -13,8 +13,13 @@ import { DiagramFeatureModule } from './features/index.js';
 import { LayeredLayoutConfigurator } from './features/layout/layered-layout-configurator.js';
 import { UmlServerModule } from './module.js';
 
-const GLSP_SERVER_PORT = 5007;
+const DEFAULT_GLSP_SERVER_PORT = 5007;
 const GLSP_SERVER_HOST = '127.0.0.1';
+
+function getGlspServerPort(): number {
+    const configuredPort = Number(process.env.BIGUML_GLSP_PORT ?? DEFAULT_GLSP_SERVER_PORT);
+    return Number.isFinite(configuredPort) ? configuredPort : DEFAULT_GLSP_SERVER_PORT;
+}
 
 /**
  * Launches a GLSP server with access to the given language services on the default port.
@@ -53,7 +58,7 @@ export function startGLSPServer(services: UmlDiagramLSPServices, modules: (Conta
     launcher.configure(serverModule);
     try {
         return launcher.start({
-            port: GLSP_SERVER_PORT,
+            port: getGlspServerPort(),
             host: GLSP_SERVER_HOST
         });
     } catch (error) {

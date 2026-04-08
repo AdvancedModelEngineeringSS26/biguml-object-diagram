@@ -6,4 +6,5 @@
  *
  * SPDX-License-Identifier: MIT
  **********************************************************************************/
-export * from '../gen/langium/index.js';
+
+export * from './instance-explorer.action.js';

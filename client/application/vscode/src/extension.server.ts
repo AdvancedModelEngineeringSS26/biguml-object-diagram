@@ -10,6 +10,7 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { LanguageClient, type LanguageClientOptions, type ServerOptions, TransportKind } from 'vscode-languageclient/node.js';
+import { GLSP_PORT_ENV, getGlspPort } from './glsp-port.js';
 
 let client: LanguageClient | undefined;
 
@@ -20,7 +21,7 @@ export async function activateServer(context: vscode.ExtensionContext): Promise<
         // if no workspace is open, we do not need to start our servers
         return;
     }
-    client = launchLanguageClient(context);
+    client = await launchLanguageClient(context);
 }
 
 // This function is called when the extension is deactivated.
@@ -28,30 +29,36 @@ export function deactivateServer(): Thenable<void> | undefined {
     return client?.stop();
 }
 
-function launchLanguageClient(context: vscode.ExtensionContext): LanguageClient {
-    const serverOptions = createServerOptions(context);
+async function launchLanguageClient(context: vscode.ExtensionContext): Promise<LanguageClient> {
+    const glspPort = await getGlspPort();
+    const serverOptions = createServerOptions(context, glspPort);
     const clientOptions = createClientOptions(context);
 
     // Start the client. This will also launch the server
     const languageClient = new LanguageClient('uml-diagram', 'uml-diagram', serverOptions, clientOptions);
-    languageClient.start();
+    await languageClient.start();
     return languageClient;
 }
 
-function createServerOptions(context: vscode.ExtensionContext): ServerOptions {
+function createServerOptions(context: vscode.ExtensionContext, glspPort: number): ServerOptions {
     // needs to match the configuration in tsconfig.json
     const serverModule = context.asAbsolutePath(path.join('build', 'server.main.cjs'));
+    const serverEnv = {
+        ...process.env,
+        [GLSP_PORT_ENV]: String(glspPort)
+    };
     // The debug options for the server
     // --inspect=6009: runs the server in Node's Inspector mode so VS Code can attach to the server for debugging.
     // By setting `process.env.DEBUG_BREAK` to a truthy value, the language server will wait until a debugger is attached.
     const debugOptions = {
+        env: serverEnv,
         execArgv: ['--nolazy', `--inspect${process.env.DEBUG_BREAK ? '-brk' : ''}=${process.env.DEBUG_SOCKET || '6009'}`]
     };
 
     // If the extension is launched in debug mode then the debug server options are used
     // Otherwise the run options are used
     return {
-        run: { module: serverModule, transport: TransportKind.ipc },
+        run: { module: serverModule, transport: TransportKind.ipc, options: { env: serverEnv } },
         debug: {
             module: serverModule,
             transport: TransportKind.ipc,
