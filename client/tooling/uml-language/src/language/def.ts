@@ -87,6 +87,7 @@ type ClassDiagramEdges =
     | Composition
     | InterfaceRealization
     | Generalization
+    | InstanceLink
     | PackageImport
     | PackageMerge
     | Realization
@@ -286,6 +287,19 @@ export class Relation extends Edge {
 
 @toolPaletteItem({
     section: 'Relations',
+    label: 'Instance Link',
+    icon: 'uml-association-icon'
+})
+@withDefaults
+export class InstanceLink extends Relation {
+    name?: string;
+    @dynamicProperty('Association')
+    @crossReference
+    association?: Association;
+}
+
+@toolPaletteItem({
+    section: 'Relations',
     label: 'Abstraction',
     icon: 'uml-abstraction-icon'
 })
@@ -458,6 +472,7 @@ type RelationType =
     | 'COMPOSITION'
     | 'DEPENDENCY'
     | 'GENERALIZATION'
+    | 'INSTANCE_LINK'
     | 'INTERFACE_REALIZATION'
     | 'PACKAGE_IMPORT'
     | 'ELEMENT_IMPORT'
