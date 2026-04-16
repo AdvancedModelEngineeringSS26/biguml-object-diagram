@@ -255,8 +255,12 @@ export class PrimitiveType extends Node {
 export class InstanceSpecification extends Node {
     name: string;
     visibility?: Visibility;
+    @dynamicProperty('Classifier')
+    @crossReference
+    classifier?: InstanceClassifier;
     @path slots?: Array<Slot>;
 }
+type InstanceClassifier = Class | Interface | DataType;
 
 @toolPaletteItem({ section: 'Feature', label: 'Slot', icon: 'uml-slot-icon' })
 @noBounds
