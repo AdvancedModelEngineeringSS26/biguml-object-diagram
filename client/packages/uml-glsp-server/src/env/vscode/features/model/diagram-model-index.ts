@@ -58,6 +58,7 @@ export class DiagramModelIndex extends GModelIndex {
     protected idToPath = new Map<string, string>();
     protected dataTypes = new Array<Enumeration | Class | DataType | Interface | PrimitiveType>();
     protected definingFeatures = new Array<Class | Interface | Property>();
+    protected classifiers = new Array<Class | Interface | DataType>();
     protected _root: Diagram | undefined;
 
     createId(node?: AstNode): string | undefined {
@@ -74,10 +75,12 @@ export class DiagramModelIndex extends GModelIndex {
         this.idToPath.clear();
         this.dataTypes.length = 0;
         this.definingFeatures.length = 0;
+        this.classifiers.length = 0;
         streamAst(root).forEach(node => {
             this.indexAstNode(node);
             this.indexDataTypeNode(node);
             this.indexDefiningFeatureNode(node);
+            this.indexClassifierNode(node);
         });
         this.collectIdToPath(JSON.parse(this.services.language.serializer.JsonSerializer.serialize(root)));
     }
@@ -116,6 +119,14 @@ export class DiagramModelIndex extends GModelIndex {
     }
     getAllDefiningFeatures() {
         return this.definingFeatures;
+    }
+    protected indexClassifierNode(node: AstNode) {
+        if (isClass(node) || isInterface(node) || isDataType(node)) {
+            this.classifiers.push(node);
+        }
+    }
+    getAllClassifiers() {
+        return this.classifiers;
     }
     protected indexAstNode(node: AstNode): void {
         const id = this.createId(node);
