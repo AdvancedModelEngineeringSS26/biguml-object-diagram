@@ -28,9 +28,12 @@ import {
     type Property,
     type Relation,
     type Size,
+    type Slot,
     isClass,
     isDataType,
     isEnumeration,
+    isGeneralization,
+    isInstanceSpecification,
     isInterface,
     isPosition,
     isPrimitiveType,
@@ -127,6 +130,47 @@ export class DiagramModelIndex extends GModelIndex {
     }
     getAllClassifiers() {
         return this.classifiers;
+    }
+    getDefiningFeaturesForSlot(slot: Slot): Array<Class | Interface | Property> {
+        const container = slot.$container;
+        if (!isInstanceSpecification(container)) {
+            return this.definingFeatures;
+        }
+        const classifier = container.classifier?.ref;
+        if (!classifier) {
+            return this.definingFeatures;
+        }
+
+        const relations = this._root?.diagram.relations ?? [];
+        const visited = new Set<AstNode>();
+        const queue: Array<Class | Interface | DataType> = [];
+        if (isClass(classifier) || isInterface(classifier) || isDataType(classifier)) {
+            queue.push(classifier);
+        }
+
+        const features: Array<Class | Interface | Property> = [];
+        while (queue.length > 0) {
+            const current = queue.shift()!;
+            if (visited.has(current)) continue;
+            visited.add(current);
+
+            if (isClass(current) || isInterface(current)) {
+                features.push(current);
+            }
+            if (Array.isArray(current.properties)) {
+                for (const p of current.properties) features.push(p);
+            }
+
+            for (const rel of relations) {
+                if (!isGeneralization(rel)) continue;
+                if (rel.source?.ref !== current) continue;
+                const parent = rel.target?.ref;
+                if (parent && (isClass(parent) || isInterface(parent) || isDataType(parent))) {
+                    queue.push(parent);
+                }
+            }
+        }
+        return features;
     }
     protected indexAstNode(node: AstNode): void {
         const id = this.createId(node);
