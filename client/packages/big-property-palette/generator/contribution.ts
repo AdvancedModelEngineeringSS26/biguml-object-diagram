@@ -235,18 +235,33 @@ export function renderRequestHandlers(extensionPath: string, declarations: Langi
             .map(n => `import { ${n}PropertyPaletteHandler } from './elements/${toKebab(n)}.property-palette-handler.js';`)
             .join('\n');
 
-        const allDyn = Array.from(
-            new Set(
-                nodes.flatMap(
-                    d =>
-                        d.properties?.flatMap(
-                            p => p.decorators?.filter(d => d.startsWith('dynamicProperty:')).map(d => d.split(':')[1]) ?? []
-                        ) ?? []
-                )
-            )
-        );
+        const usedSharedDyn = new Set<string>();
 
-        const dynamicBuilders = allDyn
+        const dispatchEntries = nodes.map(d => {
+            const dynForDecl = Array.from(
+                new Set(
+                    d.properties?.flatMap(
+                        p => p.decorators?.filter(d => d.startsWith('dynamicProperty:')).map(d => d.split(':')[1]) ?? []
+                    ) ?? []
+                )
+            );
+            const dynArgs = dynForDecl.map(t => {
+                // Slot's definingFeature choices are filtered by its owning InstanceSpecification's classifier
+                if (d.name === 'Slot' && t === 'DefiningFeature') {
+                    return `(this.modelState.index.getDefiningFeaturesForSlot?.(semanticElement) ?? []).filter((item: any) => !!item && !!item.__id && !!item.name).map((item: any) => ({ label: item.name, value: item.__id + '_refValue', secondaryText: item.$type }))`;
+                }
+                usedSharedDyn.add(t);
+                return lcFirst(t) + 'Choices';
+            });
+            const args = ['semanticElement'].concat(dynArgs).join(', ');
+            return {
+                guard: `is${d.name}`,
+                handler: `${d.name}PropertyPaletteHandler`,
+                args
+            };
+        });
+
+        const dynamicBuilders = Array.from(usedSharedDyn)
             .map(typeName => {
                 const varName = `${lcFirst(typeName)}Choices`;
                 const indexCall = `getAll${typeName}s`;
@@ -261,22 +276,6 @@ export function renderRequestHandlers(extensionPath: string, declarations: Langi
                 ].join('\n');
             })
             .join('\n');
-
-        const dispatchEntries = nodes.map(d => {
-            const dynForDecl = Array.from(
-                new Set(
-                    d.properties?.flatMap(
-                        p => p.decorators?.filter(d => d.startsWith('dynamicProperty:')).map(d => d.split(':')[1]) ?? []
-                    ) ?? []
-                )
-            );
-            const args = ['semanticElement'].concat(dynForDecl.map(t => lcFirst(t) + 'Choices')).join(', ');
-            return {
-                guard: `is${d.name}`,
-                handler: `${d.name}PropertyPaletteHandler`,
-                args
-            };
-        });
 
         const content = eta.render('./request-property-palette-action-handler', {
             className,
