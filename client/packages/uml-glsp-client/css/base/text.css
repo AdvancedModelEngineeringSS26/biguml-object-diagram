@@ -6,6 +6,10 @@
     font-weight: bold;
 }
 
+.uml-theme .uml-instance-specification .uml-font-bold {
+    text-decoration: underline;
+}
+
 .uml-theme .uml-font-italic {
     font-style: italic;
 }
