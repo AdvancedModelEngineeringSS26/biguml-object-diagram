@@ -29,6 +29,8 @@ import {
     GEnumerationNodeView,
     GGeneralizationEdge,
     GGeneralizationEdgeView,
+    GInstanceLinkEdge,
+    GInstanceLinkEdgeView,
     GInstanceSpecificationNode,
     GInstanceSpecificationNodeView,
     GInterfaceNode,
@@ -95,4 +97,5 @@ export const umlClassDiagramModule = new FeatureModule((bind, unbind, isBound, r
     configureModelElement(context, ClassDiagramEdgeTypes.USAGE, GUsageEdge, GUsageEdgeView);
     configureModelElement(context, ClassDiagramEdgeTypes.PACKAGE_IMPORT, GPackageImportEdge, GPackageImportEdgeView);
     configureModelElement(context, ClassDiagramEdgeTypes.PACKAGE_MERGE, GPackageMergeEdge, GPackageMergeEdgeView);
+    configureModelElement(context, ClassDiagramEdgeTypes.INSTANCE_LINK, GInstanceLinkEdge, GInstanceLinkEdgeView);
 });
