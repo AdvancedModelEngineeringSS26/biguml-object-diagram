@@ -29,6 +29,10 @@ jobs:
         working-directory: ./client
         run: npm install
 
+      - name: Generate
+        working-directory: ./client
+        run: npm run generate
+
       - name: Build
         working-directory: ./client
         run: npm run build
