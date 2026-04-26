@@ -22,6 +22,7 @@ import {
     isClass,
     isClassDiagram,
     isGeneralization,
+    isInstanceLink,
     isPackage
 } from '@borkdominik-biguml/uml-model-server/grammar';
 import { type GEdge, type GGraph, type GModelElement, type GModelFactory } from '@eclipse-glsp/server';
@@ -273,7 +274,12 @@ export class UmlDiagramGModelFactory implements GModelFactory {
         const args: Record<string, any> = {};
         let labelChild: GModelElement | undefined;
 
-        if (isAssociation(edge)) {
+        if (isInstanceLink(edge)) {
+            // InstanceLink: plain solid line, optional name label
+            if (edge.name) {
+                labelChild = <GLabelElement type={CommonModelTypes.LABEL_TEXT} text={edge.name} />;
+            }
+        } else if (isAssociation(edge)) {
             if (edge.sourceAggregation === 'COMPOSITE') {
                 cssClasses.push('marker-diamond-start');
             } else if (edge.sourceAggregation === 'SHARED') {
@@ -320,6 +326,8 @@ export class UmlDiagramGModelFactory implements GModelFactory {
                 return ClassDiagramEdgeTypes.DEPENDENCY;
             case 'GENERALIZATION':
                 return ClassDiagramEdgeTypes.GENERALIZATION;
+            case 'INSTANCE_LINK':
+                return ClassDiagramEdgeTypes.INSTANCE_LINK;
             case 'INTERFACE_REALIZATION':
                 return ClassDiagramEdgeTypes.INTERFACE_REALIZATION;
             case 'PACKAGE_IMPORT':
