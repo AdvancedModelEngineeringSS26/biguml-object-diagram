@@ -33,7 +33,7 @@ export function GSlotNodeElement(props: GSlotNodeElementProps): GModelElement {
     slotNode.children = [];
 
     const propertyName = node.definingFeature?.ref?.name ?? node.name ?? '';
-    const joinedValues = node.values?.map(value => value.value).join(', ') ?? '';
+    const joinedValues = node.values?.map(value => value.value ?? value.name ?? '').filter(v => v.length > 0).join(', ') ?? '';
     const slotText = joinedValues.length > 0 ? `${propertyName} = ${joinedValues}` : propertyName;
 
     const slotLabel = <GLabelElement type={CommonModelTypes.LABEL_TEXT} text={slotText} />;
