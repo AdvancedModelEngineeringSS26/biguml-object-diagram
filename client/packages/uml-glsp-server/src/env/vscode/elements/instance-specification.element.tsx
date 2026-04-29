@@ -33,8 +33,13 @@ export function GInstanceSpecificationNodeElement(props: GInstanceSpecificationN
 
     const instNode = new GInstanceSpecificationNode();
     instNode.id = id;
-    instNode.name = node.name;
-    instNode.cssClasses = ['uml-node'];
+
+    // Build the display name: "instanceName : ClassifierName" or just "instanceName"
+    const classifierName = (node.classifier as any)?.ref?.name;
+    const displayName = classifierName ? `${node.name} : ${classifierName}` : node.name;
+    instNode.name = displayName;
+
+    instNode.cssClasses = ['uml-node', 'uml-instance-specification'];
     instNode.children = [];
 
     if (position) {
@@ -45,7 +50,7 @@ export function GInstanceSpecificationNodeElement(props: GInstanceSpecificationN
         instNode.layoutOptions = { prefWidth: size.width, prefHeight: size.height };
     }
 
-    const header = <CompartmentHeader id={id} name={node.name} />;
+    const header = <CompartmentHeader id={id} name={displayName} />;
     header.parent = instNode;
     instNode.children.push(header);
 

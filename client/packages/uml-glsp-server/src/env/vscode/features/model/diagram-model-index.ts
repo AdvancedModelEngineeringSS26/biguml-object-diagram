@@ -28,9 +28,12 @@ import {
     type Property,
     type Relation,
     type Size,
+    type Slot,
     isClass,
     isDataType,
     isEnumeration,
+    isGeneralization,
+    isInstanceSpecification,
     isInterface,
     isPosition,
     isPrimitiveType,
@@ -58,6 +61,7 @@ export class DiagramModelIndex extends GModelIndex {
     protected idToPath = new Map<string, string>();
     protected dataTypes = new Array<Enumeration | Class | DataType | Interface | PrimitiveType>();
     protected definingFeatures = new Array<Class | Interface | Property>();
+    protected classifiers = new Array<Class | Interface | DataType>();
     protected _root: Diagram | undefined;
 
     createId(node?: AstNode): string | undefined {
@@ -74,10 +78,12 @@ export class DiagramModelIndex extends GModelIndex {
         this.idToPath.clear();
         this.dataTypes.length = 0;
         this.definingFeatures.length = 0;
+        this.classifiers.length = 0;
         streamAst(root).forEach(node => {
             this.indexAstNode(node);
             this.indexDataTypeNode(node);
             this.indexDefiningFeatureNode(node);
+            this.indexClassifierNode(node);
         });
         this.collectIdToPath(JSON.parse(this.services.language.serializer.JsonSerializer.serialize(root)));
     }
@@ -116,6 +122,55 @@ export class DiagramModelIndex extends GModelIndex {
     }
     getAllDefiningFeatures() {
         return this.definingFeatures;
+    }
+    protected indexClassifierNode(node: AstNode) {
+        if (isClass(node) || isInterface(node) || isDataType(node)) {
+            this.classifiers.push(node);
+        }
+    }
+    getAllClassifiers() {
+        return this.classifiers;
+    }
+    getDefiningFeaturesForSlot(slot: Slot): Array<Class | Interface | Property> {
+        const container = slot.$container;
+        if (!isInstanceSpecification(container)) {
+            return this.definingFeatures;
+        }
+        const classifier = container.classifier?.ref;
+        if (!classifier) {
+            return this.definingFeatures;
+        }
+
+        const relations = this._root?.diagram.relations ?? [];
+        const visited = new Set<AstNode>();
+        const queue: Array<Class | Interface | DataType> = [];
+        if (isClass(classifier) || isInterface(classifier) || isDataType(classifier)) {
+            queue.push(classifier);
+        }
+
+        const features: Array<Class | Interface | Property> = [];
+        while (queue.length > 0) {
+            const current = queue.shift()!;
+            if (visited.has(current)) continue;
+            visited.add(current);
+
+            if (isClass(current) || isInterface(current)) {
+                features.push(current);
+            }
+            if (Array.isArray(current.properties)) {
+                for (const p of current.properties) features.push(p);
+            }
+
+            for (const rel of relations) {
+                if (!isGeneralization(rel)) continue;
+                if (rel.source?.ref !== current) continue;
+                const parent = rel.target?.ref;
+                if (parent && (isClass(parent) || isInterface(parent) || isDataType(parent))) {
+                    queue.push(parent);
+                }
+            }
+        }
+        return features;
     }
     protected indexAstNode(node: AstNode): void {
         const id = this.createId(node);
