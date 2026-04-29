@@ -52,6 +52,15 @@ interface ClassifierInfo {
     classifierType: ClassifierType;
 }
 
+const INSTANCE_HEADER_HEIGHT = 34;
+const INSTANCE_SLOT_ROW_HEIGHT = 22;
+const INSTANCE_MIN_WIDTH = 170;
+const INSTANCE_MIN_HEIGHT = 60;
+const INSTANCE_NAME_CHAR_WIDTH = 10;
+const INSTANCE_NAME_PADDING = 48;
+const INSTANCE_PLACEMENT_GAP = 48;
+const INSTANCE_FALLBACK_CLASSIFIER_WIDTH = 120;
+
 @injectable()
 export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
     actionKinds = [RequestInstanceExplorerDataAction.KIND];
@@ -60,7 +69,7 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
     protected readonly modelState: DiagramModelState;
 
     execute(_action: RequestInstanceExplorerDataAction): MaybePromise<any[]> {
-        const classifiers = this.collectClassifiers();
+        const classifiersById = this.collectClassifiers();
         const classifierGroups = new Map<string, ClassifierGroup>();
         const unclassified: InstanceSummary[] = [];
 
@@ -69,26 +78,23 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
                 continue;
             }
 
-            const summary = this.summarizeInstance(node, classifiers.byId, classifiers.byName);
+            const summary = this.summarizeInstance(node, classifiersById);
             if (summary.classifierId) {
-                const info = classifiers.byId.get(summary.classifierId);
-                if (info) {
-                    let group = classifierGroups.get(summary.classifierId);
-                    if (!group) {
-                        group = {
-                            classifierId: info.classifier.__id,
-                            classifierName: info.classifier.name,
-                            classifierType: info.classifierType,
-                            instances: []
-                        };
-                        classifierGroups.set(summary.classifierId, group);
-                    }
-                    group.instances.push(summary);
-                    continue;
+                const info = classifiersById.get(summary.classifierId)!;
+                let group = classifierGroups.get(summary.classifierId);
+                if (!group) {
+                    group = {
+                        classifierId: info.classifier.__id,
+                        classifierName: info.classifier.name,
+                        classifierType: info.classifierType,
+                        instances: []
+                    };
+                    classifierGroups.set(summary.classifierId, group);
                 }
+                group.instances.push(summary);
+            } else {
+                unclassified.push(summary);
             }
-
-            unclassified.push(summary);
         }
 
         const groups = Array.from(classifierGroups.values())
@@ -106,113 +112,61 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
         ];
     }
 
-    protected collectClassifiers(): { byId: Map<string, ClassifierInfo>; byName: Map<string, ClassifierInfo[]> } {
+    protected collectClassifiers(): Map<string, ClassifierInfo> {
         const byId = new Map<string, ClassifierInfo>();
-        const byName = new Map<string, ClassifierInfo[]>();
-
         for (const node of streamAst(this.modelState.semanticRoot)) {
             if (!isSupportedClassifier(node)) {
                 continue;
             }
-
-            const classifierType = classifierTypeOf(node);
-            const entry: ClassifierInfo = {
-                classifier: node,
-                classifierType
-            };
-
-            byId.set(node.__id, entry);
-
-            const key = node.name.trim().toLowerCase();
-            const list = byName.get(key) ?? [];
-            list.push(entry);
-            byName.set(key, list);
+            byId.set(node.__id, { classifier: node, classifierType: classifierTypeOf(node) });
         }
-
-        return { byId, byName };
+        return byId;
     }
 
-    protected summarizeInstance(
-        instance: InstanceSpecification,
-        classifiersById: Map<string, ClassifierInfo>,
-        classifiersByName: Map<string, ClassifierInfo[]>
-    ): InstanceSummary {
+    protected summarizeInstance(instance: InstanceSpecification, classifiersById: Map<string, ClassifierInfo>): InstanceSummary {
         const diagnostics: DiagnosticSummary[] = [];
-        const classifierMatches = new Map<string, Set<string>>();
-        const slotSummaries = instance.slots.map(slot => this.summarizeSlot(slot, classifierMatches));
-        const parsedName = parseInstanceName(instance.name);
+        const slotSummaries = instance.slots.map(slot => this.summarizeSlot(slot));
 
         const directClassifier = instance.classifier?.ref;
-        let resolvedClassifier: ClassifierInfo | undefined;
-        if (directClassifier && isSupportedClassifier(directClassifier)) {
-            resolvedClassifier = classifiersById.get(directClassifier.__id);
-        }
+        const resolvedClassifier =
+            directClassifier && isSupportedClassifier(directClassifier) ? classifiersById.get(directClassifier.__id) : undefined;
 
         if (!resolvedClassifier) {
-            resolvedClassifier = resolveClassifierFromSlots(classifierMatches, classifiersById);
-            const nameMatches = parsedName.classifierName ? classifiersByName.get(parsedName.classifierName.toLowerCase()) ?? [] : [];
-            const nameClassifier = nameMatches.length === 1 ? nameMatches[0] : undefined;
+            diagnostics.push({
+                severity: 'warning',
+                message: 'Instance has no classifier set.'
+            });
+        } else {
+            const matchedPropertyIds = new Set<string>();
+            for (const slotSummary of slotSummaries) {
+                const slot = this.modelState.index.findSemanticElement(slotSummary.id, isSlot);
+                const feature = slot?.definingFeature?.ref;
+                if (!isProperty(feature)) continue;
+                matchedPropertyIds.add(feature.__id);
 
-            if (!resolvedClassifier && nameClassifier) {
-                resolvedClassifier = nameClassifier;
-            } else if (resolvedClassifier && nameClassifier && resolvedClassifier.classifier.__id !== nameClassifier.classifier.__id) {
-                diagnostics.push({
-                    severity: 'warning',
-                    message: `Name suggests ${nameClassifier.classifier.name}, but slots resolve to ${resolvedClassifier.classifier.name}.`
-                });
-            } else if (!resolvedClassifier && nameMatches.length > 1 && parsedName.classifierName) {
-                diagnostics.push({
-                    severity: 'warning',
-                    message: `Multiple classifiers named ${parsedName.classifierName} exist, so the instance cannot be grouped confidently.`
-                });
+                const owner = owningClassifier(feature);
+                if (owner && owner.__id !== resolvedClassifier.classifier.__id) {
+                    slotSummary.diagnostics.push({
+                        severity: 'warning',
+                        message: `Slot belongs to ${owner.name}, not to ${resolvedClassifier.classifier.name}.`
+                    });
+                }
             }
 
-            if (!resolvedClassifier && classifierMatches.size > 1) {
-                diagnostics.push({
-                    severity: 'warning',
-                    message: `Slots reference multiple classifiers (${Array.from(classifierMatches.keys())
-                        .map(id => classifiersById.get(id)?.classifier.name ?? id)
-                        .join(', ')}).`
-                });
-            }
-
-            if (!resolvedClassifier && slotSummaries.length === 0 && !parsedName.classifierName) {
-                diagnostics.push({
-                    severity: 'warning',
-                    message: 'No classifier information could be inferred from slots or from the instance name.'
-                });
-            }
-        }
-
-        if (resolvedClassifier) {
-            const matchedProperties = classifierMatches.get(resolvedClassifier.classifier.__id) ?? new Set<string>();
-            const missingProperties = resolvedClassifier.classifier.properties.filter(property => !matchedProperties.has(property.__id));
-
+            const missingProperties = resolvedClassifier.classifier.properties.filter(
+                property => !matchedPropertyIds.has(property.__id)
+            );
             if (missingProperties.length > 0) {
                 diagnostics.push({
                     severity: 'warning',
                     message: `Missing slots for classifier properties: ${missingProperties.map(property => property.name).join(', ')}.`
                 });
             }
-
-            for (const slotSummary of slotSummaries) {
-                const slot = this.modelState.index.findSemanticElement(slotSummary.id, isSlot);
-                const definingFeature = slot?.definingFeature?.ref;
-                if (isProperty(definingFeature)) {
-                    const owner = owningClassifier(definingFeature);
-                    if (owner && owner.__id !== resolvedClassifier.classifier.__id) {
-                        slotSummary.diagnostics.push({
-                            severity: 'warning',
-                            message: `Slot belongs to ${owner.name}, not to ${resolvedClassifier.classifier.name}.`
-                        });
-                    }
-                }
-            }
         }
 
         return {
             id: instance.__id,
-            name: parsedName.instanceName || instance.name,
+            name: instance.name,
             classifierId: resolvedClassifier?.classifier.__id,
             classifierName: resolvedClassifier?.classifier.name,
             slots: slotSummaries.sort((left, right) => left.featureName.localeCompare(right.featureName)),
@@ -220,7 +174,7 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
         };
     }
 
-    protected summarizeSlot(slot: Slot, classifierMatches: Map<string, Set<string>>): SlotSummary {
+    protected summarizeSlot(slot: Slot): SlotSummary {
         const diagnostics: DiagnosticSummary[] = [];
         const feature = slot.definingFeature?.ref;
         const values = slot.values.map(value => value.value ?? value.name ?? '');
@@ -233,12 +187,7 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
             });
         } else if (isProperty(feature)) {
             featureName = feature.name || featureName;
-            const owner = owningClassifier(feature);
-            if (owner) {
-                const matchedProperties = classifierMatches.get(owner.__id) ?? new Set<string>();
-                matchedProperties.add(feature.__id);
-                classifierMatches.set(owner.__id, matchedProperties);
-            } else {
+            if (!owningClassifier(feature)) {
                 diagnostics.push({
                     severity: 'warning',
                     message: 'Slot defining feature is not owned by a supported classifier.'
@@ -255,7 +204,6 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
                 severity: 'warning',
                 message: 'Slot defining feature points to a classifier directly instead of a property.'
             });
-            classifierMatches.set(feature.__id, classifierMatches.get(feature.__id) ?? new Set<string>());
         } else {
             diagnostics.push({
                 severity: 'warning',
@@ -308,9 +256,9 @@ export class CreateClassifierInstanceOperationHandler extends OperationHandler {
 
         const classifierPosition = this.modelState.index.findPosition(classifier.__id);
         const classifierSize = this.modelState.index.findSize(classifier.__id);
-        const width = Math.max(170, classifier.name.length * 10 + 48);
-        const height = Math.max(60, 34 + classifier.properties.length * 22);
-        const x = (classifierPosition?.x ?? 0) + (classifierSize?.width ?? 120) + 48;
+        const width = Math.max(INSTANCE_MIN_WIDTH, classifier.name.length * INSTANCE_NAME_CHAR_WIDTH + INSTANCE_NAME_PADDING);
+        const height = Math.max(INSTANCE_MIN_HEIGHT, INSTANCE_HEADER_HEIGHT + classifier.properties.length * INSTANCE_SLOT_ROW_HEIGHT);
+        const x = (classifierPosition?.x ?? 0) + (classifierSize?.width ?? INSTANCE_FALLBACK_CLASSIFIER_WIDTH) + INSTANCE_PLACEMENT_GAP;
         const y = classifierPosition?.y ?? 0;
 
         const patch = [
@@ -378,30 +326,6 @@ export class UpdateInstanceSlotValuesOperationHandler extends OperationHandler {
             ])
         );
     }
-}
-
-function resolveClassifierFromSlots(
-    classifierMatches: Map<string, Set<string>>,
-    classifiersById: Map<string, ClassifierInfo>
-): ClassifierInfo | undefined {
-    if (classifierMatches.size !== 1) {
-        return undefined;
-    }
-
-    const classifierId = Array.from(classifierMatches.keys())[0];
-    return classifiersById.get(classifierId);
-}
-
-function parseInstanceName(name: string): { instanceName: string; classifierName?: string } {
-    const match = name.match(/^\s*(.*?)\s*:\s*(.+?)\s*$/);
-    if (!match) {
-        return { instanceName: name };
-    }
-
-    return {
-        instanceName: match[1] || name,
-        classifierName: match[2]
-    };
 }
 
 function classifierTypeOf(classifier: SupportedClassifier): ClassifierType {

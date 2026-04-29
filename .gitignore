@@ -5,4 +5,3 @@ node_modules
 client/lerna-debug.log*
 *.hash
 client/.nx
-client/package.json
