@@ -32,6 +32,7 @@ import { ClassDiagramNodeTypes } from '@borkdominik-biguml/uml-glsp-server';
 import { type ActionHandler, type Command, type MaybePromise, OperationHandler } from '@eclipse-glsp/server';
 import { streamAst } from 'langium';
 import { inject, injectable } from 'inversify';
+import { URI } from 'vscode-uri';
 import {
     CreateClassifierInstanceOperation,
     InstanceExplorerDataResponse,
@@ -141,38 +142,46 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
         const slotSummaries = instance.slots.map(slot => this.summarizeSlot(slot, classifierMatches));
         const parsedName = parseInstanceName(instance.name);
 
-        let resolvedClassifier = resolveClassifierFromSlots(classifierMatches, classifiersById);
-        const nameMatches = parsedName.classifierName ? classifiersByName.get(parsedName.classifierName.toLowerCase()) ?? [] : [];
-        const nameClassifier = nameMatches.length === 1 ? nameMatches[0] : undefined;
-
-        if (!resolvedClassifier && nameClassifier) {
-            resolvedClassifier = nameClassifier;
-        } else if (resolvedClassifier && nameClassifier && resolvedClassifier.classifier.__id !== nameClassifier.classifier.__id) {
-            diagnostics.push({
-                severity: 'warning',
-                message: `Name suggests ${nameClassifier.classifier.name}, but slots resolve to ${resolvedClassifier.classifier.name}.`
-            });
-        } else if (!resolvedClassifier && nameMatches.length > 1 && parsedName.classifierName) {
-            diagnostics.push({
-                severity: 'warning',
-                message: `Multiple classifiers named ${parsedName.classifierName} exist, so the instance cannot be grouped confidently.`
-            });
+        const directClassifier = instance.classifier?.ref;
+        let resolvedClassifier: ClassifierInfo | undefined;
+        if (directClassifier && isSupportedClassifier(directClassifier)) {
+            resolvedClassifier = classifiersById.get(directClassifier.__id);
         }
 
-        if (!resolvedClassifier && classifierMatches.size > 1) {
-            diagnostics.push({
-                severity: 'warning',
-                message: `Slots reference multiple classifiers (${Array.from(classifierMatches.keys())
-                    .map(id => classifiersById.get(id)?.classifier.name ?? id)
-                    .join(', ')}).`
-            });
-        }
+        if (!resolvedClassifier) {
+            resolvedClassifier = resolveClassifierFromSlots(classifierMatches, classifiersById);
+            const nameMatches = parsedName.classifierName ? classifiersByName.get(parsedName.classifierName.toLowerCase()) ?? [] : [];
+            const nameClassifier = nameMatches.length === 1 ? nameMatches[0] : undefined;
 
-        if (!resolvedClassifier && slotSummaries.length === 0 && !parsedName.classifierName) {
-            diagnostics.push({
-                severity: 'warning',
-                message: 'No classifier information could be inferred from slots or from the instance name.'
-            });
+            if (!resolvedClassifier && nameClassifier) {
+                resolvedClassifier = nameClassifier;
+            } else if (resolvedClassifier && nameClassifier && resolvedClassifier.classifier.__id !== nameClassifier.classifier.__id) {
+                diagnostics.push({
+                    severity: 'warning',
+                    message: `Name suggests ${nameClassifier.classifier.name}, but slots resolve to ${resolvedClassifier.classifier.name}.`
+                });
+            } else if (!resolvedClassifier && nameMatches.length > 1 && parsedName.classifierName) {
+                diagnostics.push({
+                    severity: 'warning',
+                    message: `Multiple classifiers named ${parsedName.classifierName} exist, so the instance cannot be grouped confidently.`
+                });
+            }
+
+            if (!resolvedClassifier && classifierMatches.size > 1) {
+                diagnostics.push({
+                    severity: 'warning',
+                    message: `Slots reference multiple classifiers (${Array.from(classifierMatches.keys())
+                        .map(id => classifiersById.get(id)?.classifier.name ?? id)
+                        .join(', ')}).`
+                });
+            }
+
+            if (!resolvedClassifier && slotSummaries.length === 0 && !parsedName.classifierName) {
+                diagnostics.push({
+                    severity: 'warning',
+                    message: 'No classifier information could be inferred from slots or from the instance name.'
+                });
+            }
         }
 
         if (resolvedClassifier) {
@@ -214,7 +223,7 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
     protected summarizeSlot(slot: Slot, classifierMatches: Map<string, Set<string>>): SlotSummary {
         const diagnostics: DiagnosticSummary[] = [];
         const feature = slot.definingFeature?.ref;
-        const values = slot.values.map(value => value.value ?? '');
+        const values = slot.values.map(value => value.value ?? value.name ?? '');
         let featureName = slot.name || '(unnamed slot)';
 
         if (!feature) {
@@ -277,13 +286,17 @@ export class CreateClassifierInstanceOperationHandler extends OperationHandler {
 
         const instanceId = createRandomUUID();
         const baseName = findAvailableNodeName(this.modelState.semanticRoot, `New${classifier.name}`);
-        const instanceName = `${baseName} : ${classifier.name}`;
+        const instanceName = baseName;
         const containerPath = '/diagram/entities/-';
 
         const instanceValue: SerializedRecordNode = {
             $type: 'InstanceSpecification',
             __id: instanceId,
             name: instanceName,
+            classifier: {
+                ref: { __id: classifier.__id, __documentUri: classifier.$document?.uri },
+                $refText: classifier.name
+            },
             slots: classifier.properties.map(property => createSlotValue(property))
         };
 
@@ -312,7 +325,7 @@ export class CreateClassifierInstanceOperationHandler extends OperationHandler {
                 value: {
                     $type: 'Size',
                     __id: `size_${instanceId}`,
-                    element: { $ref: { __id: instanceId, __documentUri: this.modelState.semanticUri } },
+                    element: { $ref: { __id: instanceId, __documentUri: URI.parse(this.modelState.semanticUri).path } },
                     width,
                     height
                 }
@@ -323,7 +336,7 @@ export class CreateClassifierInstanceOperationHandler extends OperationHandler {
                 value: {
                     $type: 'Position',
                     __id: `pos_${instanceId}`,
-                    element: { $ref: { __id: instanceId, __documentUri: this.modelState.semanticUri } },
+                    element: { $ref: { __id: instanceId, __documentUri: URI.parse(this.modelState.semanticUri).path } },
                     x,
                     y
                 }

@@ -24,7 +24,7 @@ export function isAggregationType(item: unknown): item is AggregationType {
     return item === 'NONE' || item === 'SHARED' || item === 'COMPOSITE';
 }
 
-export type ClassDiagramEdges = Abstraction | Aggregation | Association | Composition | Dependency | Generalization | InterfaceRealization | PackageImport | PackageMerge | Realization | Substitution | Usage;
+export type ClassDiagramEdges = Abstraction | Aggregation | Association | Composition | Dependency | Generalization | InstanceLink | InterfaceRealization | PackageImport | PackageMerge | Realization | Substitution | Usage;
 
 export const ClassDiagramEdges = 'ClassDiagramEdges';
 
@@ -92,6 +92,14 @@ export function isElementWithSizeAndPosition(item: unknown): item is ElementWith
     return reflection.isInstance(item, ElementWithSizeAndPosition);
 }
 
+export type InstanceClassifier = Class | DataType | Interface;
+
+export const InstanceClassifier = 'InstanceClassifier';
+
+export function isInstanceClassifier(item: unknown): item is InstanceClassifier {
+    return reflection.isInstance(item, InstanceClassifier);
+}
+
 export type MetaInfo = Position | Size;
 
 export const MetaInfo = 'MetaInfo';
@@ -114,10 +122,10 @@ export function isParameterDirection(item: unknown): item is ParameterDirection 
     return item === 'IN' || item === 'OUT' || item === 'INOUT' || item === 'RETURN';
 }
 
-export type RelationType = 'ABSTRACTION' | 'AGGREGATION' | 'ASSOCIATION' | 'COMPOSITION' | 'DEPENDENCY' | 'ELEMENT_IMPORT' | 'GENERALIZATION' | 'INTERFACE_REALIZATION' | 'PACKAGE_IMPORT' | 'PACKAGE_MERGE' | 'REALIZATION' | 'SUBSTITUTION' | 'USAGE';
+export type RelationType = 'ABSTRACTION' | 'AGGREGATION' | 'ASSOCIATION' | 'COMPOSITION' | 'DEPENDENCY' | 'ELEMENT_IMPORT' | 'GENERALIZATION' | 'INSTANCE_LINK' | 'INTERFACE_REALIZATION' | 'PACKAGE_IMPORT' | 'PACKAGE_MERGE' | 'REALIZATION' | 'SUBSTITUTION' | 'USAGE';
 
 export function isRelationType(item: unknown): item is RelationType {
-    return item === 'ABSTRACTION' || item === 'AGGREGATION' || item === 'ASSOCIATION' || item === 'COMPOSITION' || item === 'DEPENDENCY' || item === 'GENERALIZATION' || item === 'INTERFACE_REALIZATION' || item === 'PACKAGE_IMPORT' || item === 'ELEMENT_IMPORT' || item === 'PACKAGE_MERGE' || item === 'REALIZATION' || item === 'SUBSTITUTION' || item === 'USAGE';
+    return item === 'ABSTRACTION' || item === 'AGGREGATION' || item === 'ASSOCIATION' || item === 'COMPOSITION' || item === 'DEPENDENCY' || item === 'GENERALIZATION' || item === 'INSTANCE_LINK' || item === 'INTERFACE_REALIZATION' || item === 'PACKAGE_IMPORT' || item === 'ELEMENT_IMPORT' || item === 'PACKAGE_MERGE' || item === 'REALIZATION' || item === 'SUBSTITUTION' || item === 'USAGE';
 }
 
 export type SlotDefiningFeature = Class | Interface | Property;
@@ -238,6 +246,7 @@ export interface InstanceSpecification extends AstNode {
     readonly $container: ClassDiagram | Package;
     readonly $type: 'InstanceSpecification';
     __id: string
+    classifier?: Reference<InstanceClassifier>
     name: string
     slots: Array<Slot>
     visibility?: Visibility
@@ -388,7 +397,7 @@ export function isProperty(item: unknown): item is Property {
 
 export interface Relation extends AstNode {
     readonly $container: ClassDiagram;
-    readonly $type: 'Abstraction' | 'Aggregation' | 'Association' | 'Composition' | 'Dependency' | 'Generalization' | 'InterfaceRealization' | 'PackageImport' | 'PackageMerge' | 'Realization' | 'Relation' | 'Substitution' | 'Usage';
+    readonly $type: 'Abstraction' | 'Aggregation' | 'Association' | 'Composition' | 'Dependency' | 'Generalization' | 'InstanceLink' | 'InterfaceRealization' | 'PackageImport' | 'PackageMerge' | 'Realization' | 'Relation' | 'Substitution' | 'Usage';
     __id: string
     relationType: RelationType
     source: Reference<Node>
@@ -570,6 +579,23 @@ export function isGeneralization(item: unknown): item is Generalization {
     return reflection.isInstance(item, Generalization);
 }
 
+export interface InstanceLink extends Relation {
+    readonly $container: ClassDiagram;
+    readonly $type: 'InstanceLink';
+    __id: string
+    association?: Reference<Association>
+    name?: string
+    relationType: RelationType
+    source: Reference<Node>
+    target: Reference<Node>
+}
+
+export const InstanceLink = 'InstanceLink';
+
+export function isInstanceLink(item: unknown): item is InstanceLink {
+    return reflection.isInstance(item, InstanceLink);
+}
+
 export interface InterfaceRealization extends Relation {
     readonly $container: ClassDiagram;
     readonly $type: 'InterfaceRealization';
@@ -690,6 +716,8 @@ export type UmlDiagramAstType = {
     Enumeration: Enumeration
     EnumerationLiteral: EnumerationLiteral
     Generalization: Generalization
+    InstanceClassifier: InstanceClassifier
+    InstanceLink: InstanceLink
     InstanceSpecification: InstanceSpecification
     Interface: Interface
     InterfaceRealization: InterfaceRealization
@@ -717,7 +745,7 @@ export type UmlDiagramAstType = {
 export class UmlDiagramAstReflection extends AbstractAstReflection {
 
     getAllTypes(): string[] {
-        return ['AbstractClass', 'Abstraction', 'Aggregation', 'Association', 'Class', 'ClassDiagram', 'ClassDiagramEdges', 'ClassDiagramElements', 'ClassDiagramNodes', 'Composition', 'DataType', 'DataTypeReference', 'Dependency', 'Diagram', 'Edge', 'Element', 'ElementWithSizeAndPosition', 'Enumeration', 'EnumerationLiteral', 'Generalization', 'InstanceSpecification', 'Interface', 'InterfaceRealization', 'LiteralSpecification', 'MetaInfo', 'Node', 'Operation', 'Package', 'PackageImport', 'PackageMerge', 'Parameter', 'Position', 'PrimitiveType', 'Property', 'Realization', 'Relation', 'Size', 'Slot', 'SlotDefiningFeature', 'Substitution', 'Unbounded', 'Usage'];
+        return ['AbstractClass', 'Abstraction', 'Aggregation', 'Association', 'Class', 'ClassDiagram', 'ClassDiagramEdges', 'ClassDiagramElements', 'ClassDiagramNodes', 'Composition', 'DataType', 'DataTypeReference', 'Dependency', 'Diagram', 'Edge', 'Element', 'ElementWithSizeAndPosition', 'Enumeration', 'EnumerationLiteral', 'Generalization', 'InstanceClassifier', 'InstanceLink', 'InstanceSpecification', 'Interface', 'InterfaceRealization', 'LiteralSpecification', 'MetaInfo', 'Node', 'Operation', 'Package', 'PackageImport', 'PackageMerge', 'Parameter', 'Position', 'PrimitiveType', 'Property', 'Realization', 'Relation', 'Size', 'Slot', 'SlotDefiningFeature', 'Substitution', 'Unbounded', 'Usage'];
     }
 
     protected override computeIsSubtype(subtype: string, supertype: string): boolean {
@@ -731,6 +759,7 @@ export class UmlDiagramAstReflection extends AbstractAstReflection {
             case Composition:
             case Dependency:
             case Generalization:
+            case InstanceLink:
             case InterfaceRealization:
             case PackageImport:
             case PackageMerge:
@@ -741,21 +770,23 @@ export class UmlDiagramAstReflection extends AbstractAstReflection {
             }
             case Class:
             case Interface: {
-                return this.isSubtype(ClassDiagramNodes, supertype) || this.isSubtype(DataTypeReference, supertype) || this.isSubtype(Node, supertype) || this.isSubtype(SlotDefiningFeature, supertype);
+                return this.isSubtype(ClassDiagramNodes, supertype) || this.isSubtype(DataTypeReference, supertype) || this.isSubtype(InstanceClassifier, supertype) || this.isSubtype(Node, supertype) || this.isSubtype(SlotDefiningFeature, supertype);
             }
             case ClassDiagramEdges:
             case ClassDiagramNodes: {
                 return this.isSubtype(ClassDiagramElements, supertype);
             }
-            case DataType:
-            case Enumeration:
-            case PrimitiveType: {
-                return this.isSubtype(ClassDiagramNodes, supertype) || this.isSubtype(DataTypeReference, supertype) || this.isSubtype(Node, supertype);
+            case DataType: {
+                return this.isSubtype(ClassDiagramNodes, supertype) || this.isSubtype(DataTypeReference, supertype) || this.isSubtype(InstanceClassifier, supertype) || this.isSubtype(Node, supertype);
             }
             case Edge:
             case ElementWithSizeAndPosition:
             case Unbounded: {
                 return this.isSubtype(Element, supertype);
+            }
+            case Enumeration:
+            case PrimitiveType: {
+                return this.isSubtype(ClassDiagramNodes, supertype) || this.isSubtype(DataTypeReference, supertype) || this.isSubtype(Node, supertype);
             }
             case EnumerationLiteral:
             case LiteralSpecification:
@@ -814,6 +845,10 @@ export class UmlDiagramAstReflection extends AbstractAstReflection {
             case 'Generalization:target':
             case 'Generalization:source':
             case 'Generalization:target':
+            case 'InstanceLink:source':
+            case 'InstanceLink:target':
+            case 'InstanceLink:source':
+            case 'InstanceLink:target':
             case 'InterfaceRealization:source':
             case 'InterfaceRealization:target':
             case 'InterfaceRealization:source':
@@ -841,6 +876,12 @@ export class UmlDiagramAstReflection extends AbstractAstReflection {
             case 'Usage:source':
             case 'Usage:target': {
                 return Node;
+            }
+            case 'InstanceLink:association': {
+                return Association;
+            }
+            case 'InstanceSpecification:classifier': {
+                return InstanceClassifier;
             }
             case 'Parameter:parameterType':
             case 'Property:propertyType': {

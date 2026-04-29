@@ -74,7 +74,7 @@ export class RequestClassPropertyPaletteActionHandler implements ActionHandler {
                     value: item.__id + '_refValue',
                     secondaryText: item.$type
                 }));
-            const definingFeatureChoices = (this.modelState.index.getAllDefiningFeatures?.() ?? [])
+            const classifierChoices = (this.modelState.index.getAllClassifiers?.() ?? [])
                 .filter((item: any) => !!item && !!item.__id && !!item.name)
                 .map((item: any) => ({
                     label: item.name,
@@ -102,9 +102,14 @@ export class RequestClassPropertyPaletteActionHandler implements ActionHandler {
             } else if (isPrimitiveType(semanticElement)) {
                 return PrimitiveTypePropertyPaletteHandler.getPropertyPalette(semanticElement);
             } else if (isInstanceSpecification(semanticElement)) {
-                return InstanceSpecificationPropertyPaletteHandler.getPropertyPalette(semanticElement);
+                return InstanceSpecificationPropertyPaletteHandler.getPropertyPalette(semanticElement, classifierChoices);
             } else if (isSlot(semanticElement)) {
-                return SlotPropertyPaletteHandler.getPropertyPalette(semanticElement, definingFeatureChoices);
+                return SlotPropertyPaletteHandler.getPropertyPalette(
+                    semanticElement,
+                    (this.modelState.index.getDefiningFeaturesForSlot?.(semanticElement) ?? [])
+                        .filter((item: any) => !!item && !!item.__id && !!item.name)
+                        .map((item: any) => ({ label: item.name, value: item.__id + '_refValue', secondaryText: item.$type }))
+                );
             } else if (isLiteralSpecification(semanticElement)) {
                 return LiteralSpecificationPropertyPaletteHandler.getPropertyPalette(semanticElement);
             } else if (isPackage(semanticElement)) {

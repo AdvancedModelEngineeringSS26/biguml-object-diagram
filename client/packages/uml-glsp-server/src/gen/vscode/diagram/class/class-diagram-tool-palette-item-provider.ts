@@ -130,6 +130,13 @@ export class ClassDiagramToolPaletteItemProvider extends ToolPaletteItemProvider
                 icon: 'symbol-property',
                 children: [
                     {
+                        id: 'instance-link',
+                        sortString: 'A',
+                        label: 'Instance Link',
+                        icon: 'uml-association-icon',
+                        actions: [TriggerEdgeCreationAction.create(ClassDiagramEdgeTypes.INSTANCE_LINK)]
+                    },
+                    {
                         id: 'abstraction',
                         sortString: 'A',
                         label: 'Abstraction',

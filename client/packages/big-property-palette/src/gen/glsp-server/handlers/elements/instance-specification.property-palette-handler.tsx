@@ -13,7 +13,7 @@ import {
 } from '@borkdominik-biguml/big-property-palette/glsp-server';
 
 export namespace InstanceSpecificationPropertyPaletteHandler {
-    export function getPropertyPalette(semanticElement: InstanceSpecification): SetPropertyPaletteAction[] {
+    export function getPropertyPalette(semanticElement: InstanceSpecification, classifierChoices: any): SetPropertyPaletteAction[] {
         return [
             SetPropertyPaletteAction.create(
                 <PropertyPalette elementId={semanticElement.__id} label={(semanticElement as any).name ?? semanticElement.$type}>
@@ -24,6 +24,15 @@ export namespace InstanceSpecificationPropertyPaletteHandler {
                         choices={PropertyPaletteChoices.VISIBILITY}
                         choice={semanticElement.visibility!}
                         label='Visibility'
+                    />
+                    <ChoiceProperty
+                        elementId={semanticElement.__id}
+                        propertyId='classifier'
+                        choices={classifierChoices}
+                        choice={
+                            (semanticElement.classifier as any)?.ref?.__id ? (semanticElement.classifier as any).ref.__id + '_refValue' : ''
+                        }
+                        label='Classifier'
                     />
                     <ReferenceProperty
                         elementId={semanticElement.__id}

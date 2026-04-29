@@ -90,19 +90,19 @@ type ClassDiagramNodes =
   | LiteralSpecification;
 
 type ClassDiagramEdges =
-    | Abstraction
-    | Dependency
-    | Association
-    | Aggregation
-    | Composition
-    | InterfaceRealization
-    | Generalization
-    | InstanceLink
-    | PackageImport
-    | PackageMerge
-    | Realization
-    | Substitution
-    | Usage;
+  | Abstraction
+  | Dependency
+  | Association
+  | Aggregation
+  | Composition
+  | InterfaceRealization
+  | Generalization
+  | InstanceLink
+  | PackageImport
+  | PackageMerge
+  | Realization
+  | Substitution
+  | Usage;
 
 @toolPaletteItem({
   section: "Container",
@@ -269,12 +269,12 @@ export class PrimitiveType extends Node {
 })
 @withDefaults
 export class InstanceSpecification extends Node {
-    name: string;
-    visibility?: Visibility;
-    @dynamicProperty('Classifier')
-    @crossReference
-    classifier?: InstanceClassifier;
-    @path slots?: Array<Slot>;
+  name: string;
+  visibility?: Visibility;
+  @dynamicProperty("Classifier")
+  @crossReference
+  classifier?: InstanceClassifier;
+  @path slots?: Array<Slot>;
 }
 type InstanceClassifier = Class | Interface | DataType;
 
@@ -301,22 +301,22 @@ export class Relation extends Edge {
 }
 
 @toolPaletteItem({
-    section: 'Relations',
-    label: 'Instance Link',
-    icon: 'uml-association-icon'
+  section: "Relations",
+  label: "Instance Link",
+  icon: "uml-association-icon",
 })
 @withDefaults
 export class InstanceLink extends Relation {
-    name?: string;
-    @dynamicProperty('Association')
-    @crossReference
-    association?: Association;
+  name?: string;
+  @dynamicProperty("Association")
+  @crossReference
+  association?: Association;
 }
 
 @toolPaletteItem({
-    section: 'Relations',
-    label: 'Abstraction',
-    icon: 'uml-abstraction-icon'
+  section: "Relations",
+  label: "Abstraction",
+  icon: "uml-abstraction-icon",
 })
 @withDefaults
 export class Abstraction extends Relation {
@@ -481,18 +481,18 @@ type EffectType = "CREATE" | "READ" | "UPDATE" | "DELETE";
 
 type Concurrency = "SEQUENTIAL" | "GUARDED" | "CONCURRENT";
 type RelationType =
-    | 'ABSTRACTION'
-    | 'AGGREGATION'
-    | 'ASSOCIATION'
-    | 'COMPOSITION'
-    | 'DEPENDENCY'
-    | 'GENERALIZATION'
-    | 'INSTANCE_LINK'
-    | 'INTERFACE_REALIZATION'
-    | 'PACKAGE_IMPORT'
-    | 'ELEMENT_IMPORT'
-    | 'PACKAGE_MERGE'
-    | 'REALIZATION'
-    | 'SUBSTITUTION'
-    | 'USAGE';
-type Visibility = 'PUBLIC' | 'PRIVATE' | 'PROTECTED' | 'PACKAGE';
+  | "ABSTRACTION"
+  | "AGGREGATION"
+  | "ASSOCIATION"
+  | "COMPOSITION"
+  | "DEPENDENCY"
+  | "GENERALIZATION"
+  | "INSTANCE_LINK"
+  | "INTERFACE_REALIZATION"
+  | "PACKAGE_IMPORT"
+  | "ELEMENT_IMPORT"
+  | "PACKAGE_MERGE"
+  | "REALIZATION"
+  | "SUBSTITUTION"
+  | "USAGE";
+type Visibility = "PUBLIC" | "PRIVATE" | "PROTECTED" | "PACKAGE";

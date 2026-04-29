@@ -37,6 +37,7 @@ export namespace ClassDiagramEdgeTypes {
     export const COMPOSITION = representationTemplateTypeId('Class', DefaultTypes.EDGE, 'composition', 'Association');
     export const INTERFACE_REALIZATION = representationTypeId('Class', DefaultTypes.EDGE, 'InterfaceRealization');
     export const GENERALIZATION = representationTypeId('Class', DefaultTypes.EDGE, 'Generalization');
+    export const INSTANCE_LINK = representationTypeId('Class', DefaultTypes.EDGE, 'InstanceLink');
     export const PACKAGE_IMPORT = representationTypeId('Class', DefaultTypes.EDGE, 'PackageImport');
     export const PACKAGE_MERGE = representationTypeId('Class', DefaultTypes.EDGE, 'PackageMerge');
     export const REALIZATION = representationTypeId('Class', DefaultTypes.EDGE, 'Realization');
@@ -69,6 +70,7 @@ export namespace ClassDiagramModelTypes {
     export const COMPOSITION = ClassDiagramEdgeTypes.COMPOSITION;
     export const INTERFACE_REALIZATION = ClassDiagramEdgeTypes.INTERFACE_REALIZATION;
     export const GENERALIZATION = ClassDiagramEdgeTypes.GENERALIZATION;
+    export const INSTANCE_LINK = ClassDiagramEdgeTypes.INSTANCE_LINK;
     export const PACKAGE_IMPORT = ClassDiagramEdgeTypes.PACKAGE_IMPORT;
     export const PACKAGE_MERGE = ClassDiagramEdgeTypes.PACKAGE_MERGE;
     export const REALIZATION = ClassDiagramEdgeTypes.REALIZATION;
