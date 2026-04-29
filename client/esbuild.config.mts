@@ -50,20 +50,7 @@ export class ESBuildRunner {
             throw new Error('No outdir specified');
         }
 
-        if (this.isWatch) {
-            return;
-        }
-
-        try {
-            fs.rmSync(this.config.outdir, { recursive: true, force: true });
-        } catch (error) {
-            const code = (error as NodeJS.ErrnoException).code;
-            if (code !== 'EPERM' && code !== 'EACCES') {
-                throw error;
-            }
-
-            console.warn(`Skipping cleanup for '${this.config.outdir}' because it is locked by another process.`);
-        }
+        fs.rmSync(this.config.outdir, { recursive: true, force: true });
     }
 
     async run(): Promise<void> {

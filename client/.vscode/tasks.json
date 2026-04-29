@@ -4,13 +4,13 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Build VS Code Dev",
+      "label": "Build all packages",
       "type": "shell",
       "group": {
         "kind": "build",
         "isDefault": true
       },
-      "command": "npm run build:vscode-dev",
+      "command": "npm install",
       "presentation": {
         "reveal": "always",
         "panel": "new"

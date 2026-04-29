@@ -6,4 +6,4 @@
  *
  * SPDX-License-Identifier: MIT
  **********************************************************************************/
-export * from '../gen/langium/index.js';
+export * from '@borkdominik-biguml/uml-model-server/gen/langium';

@@ -13,16 +13,14 @@ import { TYPES, type GlspServer, type OnActivate } from '@borkdominik-biguml/big
 import { type Container } from 'inversify';
 import * as vscode from 'vscode';
 import { createContainer } from './extension.config.js';
-import { getGlspPort } from './glsp-port.js';
 
 let diContainer: Container | undefined;
 
 export async function activateClient(context: vscode.ExtensionContext): Promise<void> {
     try {
-        const glspPort = await getGlspPort();
         diContainer = createContainer(context, {
             glspServerConfig: {
-                port: glspPort
+                port: 5007
             },
             diagram: {
                 diagramType: VSCodeSettings.diagramType,
@@ -32,10 +30,9 @@ export async function activateClient(context: vscode.ExtensionContext): Promise<
 
         diContainer.getAll<OnActivate>(TYPES.OnActivate).forEach(service => service.onActivate?.());
 
-        void diContainer
-            .get<GlspServer>(TYPES.GlspServer)
-            .start()
-            .catch(error => console.warn('Initial GLSP server connection failed. Retrying on first editor open.', error));
+        setTimeout(() => {
+            diContainer!.get<GlspServer>(TYPES.GlspServer).start();
+        }, 2000);
 
         vscode.commands.executeCommand('setContext', `${VSCodeSettings.name}.isRunning`, true);
     } catch (error) {

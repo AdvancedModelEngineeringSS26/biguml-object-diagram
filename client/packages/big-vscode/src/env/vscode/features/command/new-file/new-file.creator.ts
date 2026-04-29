@@ -21,8 +21,6 @@ const nameRegex = /^([\w_-]+\/?)*[\w_-]+$/;
 @injectable()
 export class NewFileCreator implements Disposable {
     protected toDispose = new DisposableCollection();
-    protected readonly fileOpenRetryCount = 10;
-    protected readonly fileOpenRetryDelayMs = 100;
 
     constructor(
         @inject(TYPES.IdeSessionClient)
@@ -99,39 +97,13 @@ export class NewFileCreator implements Disposable {
                     'Close'
                 );
                 await vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
-                const createdFile = this.toFileUri(message.action.sourceUri);
-                await this.prepareCustomEditorDocument(createdFile);
-                await vscode.commands.executeCommand('vscode.openWith', createdFile, VSCodeSettings.editor.viewType);
+                await vscode.commands.executeCommand(
+                    'vscode.openWith',
+                    vscode.Uri.file(`${message.action.sourceUri}.uml`),
+                    VSCodeSettings.editor.viewType
+                );
             }
         }, client.id);
-    }
-
-    protected toFileUri(sourceUri: string): vscode.Uri {
-        return sourceUri.startsWith('file:')
-            ? vscode.Uri.parse(sourceUri.endsWith('.uml') ? sourceUri : `${sourceUri}.uml`)
-            : vscode.Uri.file(`${sourceUri}.uml`);
-    }
-
-    protected async prepareCustomEditorDocument(uri: vscode.Uri): Promise<void> {
-        let lastError: unknown;
-
-        // Files are created by the server process, so VS Code can lag briefly before it can resolve the document.
-        for (let attempt = 0; attempt < this.fileOpenRetryCount; attempt++) {
-            try {
-                await vscode.workspace.fs.stat(uri);
-                await vscode.workspace.openTextDocument(uri);
-                return;
-            } catch (error) {
-                lastError = error;
-                await this.sleep(this.fileOpenRetryDelayMs);
-            }
-        }
-
-        throw lastError instanceof Error ? lastError : new Error(`Could not prepare '${uri.toString()}' for opening.`);
-    }
-
-    protected sleep(delayMs: number): Promise<void> {
-        return new Promise(resolve => setTimeout(resolve, delayMs));
     }
 
     protected rootDestination(uri: vscode.Uri): string {

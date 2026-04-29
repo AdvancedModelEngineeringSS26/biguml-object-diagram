@@ -8,7 +8,6 @@
       "name": "Launch Extension",
       "type": "extensionHost",
       "request": "launch",
-      "preLaunchTask": "Build VS Code Dev",
       "runtimeExecutable": "${execPath}",
       "args": [
         "${workspaceFolder}/workspace",

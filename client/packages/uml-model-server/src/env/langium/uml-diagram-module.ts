@@ -7,7 +7,7 @@
  *
  * SPDX-License-Identifier: MIT
  **********************************************************************************/
-import { UmlDiagramSerializer } from '../../gen/langium/uml-diagram-serializer.js';
+import { UmlDiagramSerializer } from '@borkdominik-biguml/uml-model-server/gen/langium';
 import {
     createDefaultModule,
     createDefaultSharedModule,
