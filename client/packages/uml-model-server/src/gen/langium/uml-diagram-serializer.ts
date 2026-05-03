@@ -41,6 +41,8 @@ import {
     isLiteralSpecification,
     Relation,
     isRelation,
+    InstanceLink,
+    isInstanceLink,
     Abstraction,
     isAbstraction,
     Dependency,
@@ -75,6 +77,8 @@ import {
     isClassDiagramEdges,
     DataTypeReference,
     isDataTypeReference,
+    InstanceClassifier,
+    isInstanceClassifier,
     SlotDefiningFeature,
     isSlotDefiningFeature,
     AggregationType,
@@ -479,6 +483,15 @@ export class UmlDiagramSerializer implements Serializer<Diagram>, DiagramSeriali
         if (element.visibility !== undefined && element.visibility !== null) {
             str.push('"visibility": ' + this.serializeVisibility(element.visibility));
         }
+        if (element.classifier !== undefined && element.classifier !== null) {
+            str.push(
+                '"classifier": ' +
+                    '{' +
+                    ' "__type": "Reference", "__refType": "InstanceClassifier", "__value": "' +
+                    (element.classifier.ref?.__id ?? 'undefined') +
+                    '"}'
+            );
+        }
         if (element.slots !== undefined && element.slots !== null) {
             str.push('"slots": [' + element.slots.map(property => this.serializeSlot(property)).join(',') + ']');
         }
@@ -526,6 +539,9 @@ export class UmlDiagramSerializer implements Serializer<Diagram>, DiagramSeriali
 
     serializeRelation(element: Relation): string {
         let str: Array<string> = [];
+        if (isInstanceLink(element)) {
+            return this.serializeInstanceLink(element);
+        }
         if (isAbstraction(element)) {
             return this.serializeAbstraction(element);
         }
@@ -565,6 +581,48 @@ export class UmlDiagramSerializer implements Serializer<Diagram>, DiagramSeriali
         str.push('"__type": "Relation"');
         if (element.__id !== undefined && element.__id !== null) {
             str.push('"__id": ' + '"' + element.__id + '"');
+        }
+        if (element.source !== undefined && element.source !== null) {
+            str.push(
+                '"source": ' +
+                    '{' +
+                    ' "__type": "Reference", "__refType": "Node", "__value": "' +
+                    (element.source.ref?.__id ?? 'undefined') +
+                    '"}'
+            );
+        }
+        if (element.target !== undefined && element.target !== null) {
+            str.push(
+                '"target": ' +
+                    '{' +
+                    ' "__type": "Reference", "__refType": "Node", "__value": "' +
+                    (element.target.ref?.__id ?? 'undefined') +
+                    '"}'
+            );
+        }
+        if (element.relationType !== undefined && element.relationType !== null) {
+            str.push('"relationType": ' + this.serializeRelationType(element.relationType));
+        }
+        return '{' + str.join(',\n') + '}';
+    }
+
+    serializeInstanceLink(element: InstanceLink): string {
+        let str: Array<string> = [];
+        str.push('"__type": "InstanceLink"');
+        if (element.__id !== undefined && element.__id !== null) {
+            str.push('"__id": ' + '"' + element.__id + '"');
+        }
+        if (element.name !== undefined && element.name !== null) {
+            str.push('"name": ' + '"' + element.name + '"');
+        }
+        if (element.association !== undefined && element.association !== null) {
+            str.push(
+                '"association": ' +
+                    '{' +
+                    ' "__type": "Reference", "__refType": "Association", "__value": "' +
+                    (element.association.ref?.__id ?? 'undefined') +
+                    '"}'
+            );
         }
         if (element.source !== undefined && element.source !== null) {
             str.push(
@@ -1172,6 +1230,9 @@ export class UmlDiagramSerializer implements Serializer<Diagram>, DiagramSeriali
         if (isGeneralization(element)) {
             return this.serializeGeneralization(element);
         }
+        if (isInstanceLink(element)) {
+            return this.serializeInstanceLink(element);
+        }
         if (isPackageImport(element)) {
             return this.serializePackageImport(element);
         }
@@ -1204,6 +1265,18 @@ export class UmlDiagramSerializer implements Serializer<Diagram>, DiagramSeriali
         }
         if (isPrimitiveType(element)) {
             return this.serializePrimitiveType(element);
+        }
+    }
+
+    serializeInstanceClassifier(element: InstanceClassifier): any {
+        if (isClass(element)) {
+            return this.serializeClass(element);
+        }
+        if (isInterface(element)) {
+            return this.serializeInterface(element);
+        }
+        if (isDataType(element)) {
+            return this.serializeDataType(element);
         }
     }
 

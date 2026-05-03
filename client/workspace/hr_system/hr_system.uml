@@ -1,0 +1,1749 @@
+{
+	"diagram": {
+		"__type": "ClassDiagram",
+		"__id": "ClassDiagram1",
+		"diagramType": "CLASS",
+		"entities": [
+			{
+				"__type": "Class",
+				"__id": "person-cls",
+				"name": "Person",
+				"isAbstract": true,
+				"properties": [
+					{
+						"__type": "Property",
+						"__id": "person-name-prop",
+						"name": "fullName",
+						"isDerived": false,
+						"isOrdered": false,
+						"isStatic": false,
+						"isDerivedUnion": false,
+						"isReadOnly": false,
+						"isUnique": true,
+						"visibility": "PUBLIC",
+						"multiplicity": "one",
+						"aggregation": "NONE"
+					},
+					{
+						"__type": "Property",
+						"__id": "person-email-prop",
+						"name": "email",
+						"isDerived": false,
+						"isOrdered": false,
+						"isStatic": false,
+						"isDerivedUnion": false,
+						"isReadOnly": false,
+						"isUnique": true,
+						"visibility": "PUBLIC",
+						"aggregation": "NONE"
+					},
+					{
+						"__type": "Property",
+						"__id": "person-birthYear-prop",
+						"name": "birthYear",
+						"isDerived": false,
+						"isOrdered": false,
+						"isStatic": false,
+						"isDerivedUnion": false,
+						"isReadOnly": false,
+						"isUnique": true,
+						"visibility": "PUBLIC",
+						"aggregation": "NONE"
+					}
+				],
+				"operations": [],
+				"isActive": false,
+				"visibility": "PUBLIC",
+				"skip": false
+			},
+			{
+				"__type": "Class",
+				"__id": "employee-cls",
+				"name": "Employee",
+				"isAbstract": false,
+				"properties": [
+					{
+						"__type": "Property",
+						"__id": "emp-employeeId-prop",
+						"name": "employeeId",
+						"isDerived": false,
+						"isOrdered": false,
+						"isStatic": false,
+						"isDerivedUnion": false,
+						"isReadOnly": false,
+						"isUnique": true,
+						"visibility": "PUBLIC",
+						"multiplicity": "one",
+						"aggregation": "NONE"
+					},
+					{
+						"__type": "Property",
+						"__id": "emp-department-prop",
+						"name": "department",
+						"isDerived": false,
+						"isOrdered": false,
+						"isStatic": false,
+						"isDerivedUnion": false,
+						"isReadOnly": false,
+						"isUnique": true,
+						"visibility": "PUBLIC",
+						"aggregation": "NONE"
+					},
+					{
+						"__type": "Property",
+						"__id": "emp-salary-prop",
+						"name": "salary",
+						"isDerived": false,
+						"isOrdered": false,
+						"isStatic": false,
+						"isDerivedUnion": false,
+						"isReadOnly": false,
+						"isUnique": true,
+						"visibility": "PUBLIC",
+						"aggregation": "NONE"
+					}
+				],
+				"operations": [],
+				"isActive": false,
+				"visibility": "PUBLIC",
+				"skip": false
+			},
+			{
+				"__type": "Class",
+				"__id": "manager-cls",
+				"name": "Manager",
+				"isAbstract": false,
+				"properties": [
+					{
+						"__type": "Property",
+						"__id": "mgr-teamSize-prop",
+						"name": "teamSize",
+						"isDerived": false,
+						"isOrdered": false,
+						"isStatic": false,
+						"isDerivedUnion": false,
+						"isReadOnly": false,
+						"isUnique": true,
+						"visibility": "PUBLIC",
+						"aggregation": "NONE"
+					}
+				],
+				"operations": [],
+				"isActive": false,
+				"visibility": "PUBLIC",
+				"skip": false
+			},
+			{
+				"__type": "Class",
+				"__id": "customer-cls",
+				"name": "Customer",
+				"isAbstract": false,
+				"properties": [
+					{
+						"__type": "Property",
+						"__id": "cust-customerId-prop",
+						"name": "customerId",
+						"isDerived": false,
+						"isOrdered": false,
+						"isStatic": false,
+						"isDerivedUnion": false,
+						"isReadOnly": false,
+						"isUnique": true,
+						"visibility": "PUBLIC",
+						"multiplicity": "one",
+						"aggregation": "NONE"
+					},
+					{
+						"__type": "Property",
+						"__id": "cust-loyaltyTier-prop",
+						"name": "loyaltyTier",
+						"isDerived": false,
+						"isOrdered": false,
+						"isStatic": false,
+						"isDerivedUnion": false,
+						"isReadOnly": false,
+						"isUnique": true,
+						"visibility": "PUBLIC",
+						"aggregation": "NONE"
+					}
+				],
+				"operations": [],
+				"isActive": false,
+				"visibility": "PUBLIC",
+				"skip": false
+			},
+			{
+				"__type": "DataType",
+				"__id": "address-dt",
+				"name": "Address",
+				"properties": [
+					{
+						"__type": "Property",
+						"__id": "addr-street-prop",
+						"name": "street",
+						"isDerived": false,
+						"isOrdered": false,
+						"isStatic": false,
+						"isDerivedUnion": false,
+						"isReadOnly": false,
+						"isUnique": true,
+						"visibility": "PUBLIC",
+						"aggregation": "NONE"
+					},
+					{
+						"__type": "Property",
+						"__id": "addr-city-prop",
+						"name": "city",
+						"isDerived": false,
+						"isOrdered": false,
+						"isStatic": false,
+						"isDerivedUnion": false,
+						"isReadOnly": false,
+						"isUnique": true,
+						"visibility": "PUBLIC",
+						"aggregation": "NONE"
+					},
+					{
+						"__type": "Property",
+						"__id": "addr-country-prop",
+						"name": "country",
+						"isDerived": false,
+						"isOrdered": false,
+						"isStatic": false,
+						"isDerivedUnion": false,
+						"isReadOnly": false,
+						"isUnique": true,
+						"visibility": "PUBLIC",
+						"aggregation": "NONE"
+					}
+				],
+				"operations": [],
+				"isAbstract": false,
+				"visibility": "PUBLIC"
+			},
+			{
+				"__type": "Class",
+				"__id": "company-cls",
+				"name": "Company",
+				"isAbstract": false,
+				"properties": [
+					{
+						"__type": "Property",
+						"__id": "comp-name-prop",
+						"name": "companyName",
+						"isDerived": false,
+						"isOrdered": false,
+						"isStatic": false,
+						"isDerivedUnion": false,
+						"isReadOnly": false,
+						"isUnique": true,
+						"visibility": "PUBLIC",
+						"multiplicity": "one",
+						"aggregation": "NONE"
+					},
+					{
+						"__type": "Property",
+						"__id": "comp-founded-prop",
+						"name": "founded",
+						"isDerived": false,
+						"isOrdered": false,
+						"isStatic": false,
+						"isDerivedUnion": false,
+						"isReadOnly": false,
+						"isUnique": true,
+						"visibility": "PUBLIC",
+						"aggregation": "NONE"
+					}
+				],
+				"operations": [],
+				"isActive": false,
+				"visibility": "PUBLIC",
+				"skip": false
+			},
+			{
+				"__type": "InstanceSpecification",
+				"__id": "alice-inst",
+				"name": "alice",
+				"visibility": "PUBLIC",
+				"classifier": {
+					"__type": "Reference",
+					"__refType": "InstanceClassifier",
+					"__value": "manager-cls"
+				},
+				"slots": [
+					{
+						"__type": "Slot",
+						"__id": "alice-name-slot",
+						"name": "fullName",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "person-name-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "alice-name-val",
+								"name": "AliceSmith",
+								"value": "AliceSmith"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "alice-email-slot",
+						"name": "email",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "person-email-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "alice-email-val",
+								"name": "alice-acme",
+								"value": "alice-acme"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "alice-birthYear-slot",
+						"name": "birthYear",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "person-birthYear-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "alice-birthYear-val",
+								"name": "n1985",
+								"value": "n1985"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "alice-empId-slot",
+						"name": "employeeId",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "emp-employeeId-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "alice-empId-val",
+								"name": "E001",
+								"value": "E001"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "alice-dept-slot",
+						"name": "department",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "emp-department-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "alice-dept-val",
+								"name": "Engineering",
+								"value": "Engineering"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "alice-salary-slot",
+						"name": "salary",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "emp-salary-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "alice-salary-val",
+								"name": "n95000",
+								"value": "n95000"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "alice-teamSize-slot",
+						"name": "teamSize",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "mgr-teamSize-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "alice-teamSize-val",
+								"name": "n8",
+								"value": "n8"
+							}
+						]
+					}
+				]
+			},
+			{
+				"__type": "InstanceSpecification",
+				"__id": "bob-inst",
+				"name": "bob",
+				"visibility": "PUBLIC",
+				"classifier": {
+					"__type": "Reference",
+					"__refType": "InstanceClassifier",
+					"__value": "employee-cls"
+				},
+				"slots": [
+					{
+						"__type": "Slot",
+						"__id": "bob-name-slot",
+						"name": "fullName",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "person-name-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "bob-name-val",
+								"name": "BobJones",
+								"value": "BobJones"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "bob-email-slot",
+						"name": "email",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "person-email-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "bob-email-val",
+								"name": "bob-acme",
+								"value": "bob-acme"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "bob-birthYear-slot",
+						"name": "birthYear",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "person-birthYear-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "bob-birthYear-val",
+								"name": "n1990",
+								"value": "n1990"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "bob-empId-slot",
+						"name": "employeeId",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "emp-employeeId-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "bob-empId-val",
+								"name": "E002",
+								"value": "E002"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "bob-dept-slot",
+						"name": "department",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "emp-department-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "bob-dept-val",
+								"name": "Marketing",
+								"value": "Marketing"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "bob-salary-slot",
+						"name": "salary",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "emp-salary-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "bob-salary-val",
+								"name": "n72000",
+								"value": "n72000"
+							}
+						]
+					}
+				]
+			},
+			{
+				"__type": "InstanceSpecification",
+				"__id": "charlie-inst",
+				"name": "charlie",
+				"visibility": "PUBLIC",
+				"classifier": {
+					"__type": "Reference",
+					"__refType": "InstanceClassifier",
+					"__value": "manager-cls"
+				},
+				"slots": [
+					{
+						"__type": "Slot",
+						"__id": "charlie-name-slot",
+						"name": "fullName",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "person-name-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "charlie-name-val",
+								"name": "CharlieDavis",
+								"value": "CharlieDavis"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "charlie-email-slot",
+						"name": "email",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "person-email-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "charlie-email-val",
+								"name": "charlie-acme",
+								"value": "charlie-acme"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "charlie-birthYear-slot",
+						"name": "birthYear",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "person-birthYear-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "charlie-birthYear-val",
+								"name": "n1978",
+								"value": "n1978"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "charlie-empId-slot",
+						"name": "employeeId",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "emp-employeeId-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "charlie-empId-val",
+								"name": "E003",
+								"value": "E003"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "charlie-dept-slot",
+						"name": "department",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "emp-department-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "charlie-dept-val",
+								"name": "Operations",
+								"value": "Operations"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "charlie-salary-slot",
+						"name": "salary",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "emp-salary-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "charlie-salary-val",
+								"name": "n105000",
+								"value": "n105000"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "charlie-teamSize-slot",
+						"name": "teamSize",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "mgr-teamSize-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "charlie-teamSize-val",
+								"name": "n15",
+								"value": "n15"
+							}
+						]
+					}
+				]
+			},
+			{
+				"__type": "InstanceSpecification",
+				"__id": "diana-inst",
+				"name": "diana",
+				"visibility": "PUBLIC",
+				"classifier": {
+					"__type": "Reference",
+					"__refType": "InstanceClassifier",
+					"__value": "employee-cls"
+				},
+				"slots": [
+					{
+						"__type": "Slot",
+						"__id": "diana-name-slot",
+						"name": "fullName",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "person-name-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "diana-name-val",
+								"name": "DianaLee",
+								"value": "DianaLee"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "diana-email-slot",
+						"name": "email",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "person-email-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "diana-email-val",
+								"name": "diana-techco",
+								"value": "diana-techco"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "diana-birthYear-slot",
+						"name": "birthYear",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "person-birthYear-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "diana-birthYear-val",
+								"name": "n1992",
+								"value": "n1992"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "diana-empId-slot",
+						"name": "employeeId",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "emp-employeeId-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "diana-empId-val",
+								"name": "E004",
+								"value": "E004"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "diana-dept-slot",
+						"name": "department",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "emp-department-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "diana-dept-val",
+								"name": "Design",
+								"value": "Design"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "diana-salary-slot",
+						"name": "salary",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "emp-salary-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "diana-salary-val",
+								"name": "n68000",
+								"value": "n68000"
+							}
+						]
+					}
+				]
+			},
+			{
+				"__type": "InstanceSpecification",
+				"__id": "carol-inst",
+				"name": "carol",
+				"visibility": "PUBLIC",
+				"classifier": {
+					"__type": "Reference",
+					"__refType": "InstanceClassifier",
+					"__value": "customer-cls"
+				},
+				"slots": [
+					{
+						"__type": "Slot",
+						"__id": "carol-name-slot",
+						"name": "fullName",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "person-name-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "carol-name-val",
+								"name": "CarolWhite",
+								"value": "CarolWhite"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "carol-email-slot",
+						"name": "email",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "person-email-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "carol-email-val",
+								"name": "carol-mail",
+								"value": "carol-mail"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "carol-birthYear-slot",
+						"name": "birthYear",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "person-birthYear-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "carol-birthYear-val",
+								"name": "n1988",
+								"value": "n1988"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "carol-custId-slot",
+						"name": "customerId",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "cust-customerId-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "carol-custId-val",
+								"name": "C001",
+								"value": "C001"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "carol-tier-slot",
+						"name": "loyaltyTier",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "cust-loyaltyTier-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "carol-tier-val",
+								"name": "Gold",
+								"value": "Gold"
+							}
+						]
+					}
+				]
+			},
+			{
+				"__type": "InstanceSpecification",
+				"__id": "dave-inst",
+				"name": "dave",
+				"visibility": "PUBLIC",
+				"classifier": {
+					"__type": "Reference",
+					"__refType": "InstanceClassifier",
+					"__value": "customer-cls"
+				},
+				"slots": [
+					{
+						"__type": "Slot",
+						"__id": "dave-name-slot",
+						"name": "fullName",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "person-name-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "dave-name-val",
+								"name": "DaveBrown",
+								"value": "DaveBrown"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "dave-email-slot",
+						"name": "email",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "person-email-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "dave-email-val",
+								"name": "dave-mail",
+								"value": "dave-mail"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "dave-custId-slot",
+						"name": "customerId",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "cust-customerId-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "dave-custId-val",
+								"name": "C002",
+								"value": "C002"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "dave-tier-slot",
+						"name": "loyaltyTier",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "cust-loyaltyTier-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "dave-tier-val",
+								"name": "Silver",
+								"value": "Silver"
+							}
+						]
+					}
+				]
+			},
+			{
+				"__type": "InstanceSpecification",
+				"__id": "alice-addr-inst",
+				"name": "aliceAddr",
+				"visibility": "PUBLIC",
+				"classifier": {
+					"__type": "Reference",
+					"__refType": "InstanceClassifier",
+					"__value": "address-dt"
+				},
+				"slots": [
+					{
+						"__type": "Slot",
+						"__id": "alice-street-slot",
+						"name": "street",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "addr-street-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "alice-street-val",
+								"name": "Dev-Lane-10",
+								"value": "Dev-Lane-10"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "alice-city-slot",
+						"name": "city",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "addr-city-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "alice-city-val",
+								"name": "Vienna",
+								"value": "Vienna"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "alice-country-slot",
+						"name": "country",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "addr-country-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "alice-country-val",
+								"name": "Austria",
+								"value": "Austria"
+							}
+						]
+					}
+				]
+			},
+			{
+				"__type": "InstanceSpecification",
+				"__id": "carol-addr-inst",
+				"name": "carolAddr",
+				"visibility": "PUBLIC",
+				"classifier": {
+					"__type": "Reference",
+					"__refType": "InstanceClassifier",
+					"__value": "address-dt"
+				},
+				"slots": [
+					{
+						"__type": "Slot",
+						"__id": "carol-street-slot",
+						"name": "street",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "addr-street-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "carol-street-val",
+								"name": "Main-St-5",
+								"value": "Main-St-5"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "carol-city-slot",
+						"name": "city",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "addr-city-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "carol-city-val",
+								"name": "Berlin",
+								"value": "Berlin"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "carol-country-slot",
+						"name": "country",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "addr-country-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "carol-country-val",
+								"name": "Germany",
+								"value": "Germany"
+							}
+						]
+					}
+				]
+			},
+			{
+				"__type": "InstanceSpecification",
+				"__id": "dave-addr-inst",
+				"name": "daveAddr",
+				"visibility": "PUBLIC",
+				"classifier": {
+					"__type": "Reference",
+					"__refType": "InstanceClassifier",
+					"__value": "address-dt"
+				},
+				"slots": [
+					{
+						"__type": "Slot",
+						"__id": "dave-street-slot",
+						"name": "street",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "addr-street-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "dave-street-val",
+								"name": "Oak-Ave-22",
+								"value": "Oak-Ave-22"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "dave-city-slot",
+						"name": "city",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "addr-city-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "dave-city-val",
+								"name": "London",
+								"value": "London"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "dave-country-slot",
+						"name": "country",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "addr-country-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "dave-country-val",
+								"name": "UK",
+								"value": "UK"
+							}
+						]
+					}
+				]
+			},
+			{
+				"__type": "InstanceSpecification",
+				"__id": "acme-inst",
+				"name": "acme",
+				"visibility": "PUBLIC",
+				"classifier": {
+					"__type": "Reference",
+					"__refType": "InstanceClassifier",
+					"__value": "company-cls"
+				},
+				"slots": [
+					{
+						"__type": "Slot",
+						"__id": "acme-name-slot",
+						"name": "companyName",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "comp-name-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "acme-name-val",
+								"name": "Acme-Corp",
+								"value": "Acme-Corp"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "acme-founded-slot",
+						"name": "founded",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "comp-founded-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "acme-founded-val",
+								"name": "n1985",
+								"value": "n1985"
+							}
+						]
+					}
+				]
+			},
+			{
+				"__type": "InstanceSpecification",
+				"__id": "techco-inst",
+				"name": "techco",
+				"visibility": "PUBLIC",
+				"classifier": {
+					"__type": "Reference",
+					"__refType": "InstanceClassifier",
+					"__value": "company-cls"
+				},
+				"slots": [
+					{
+						"__type": "Slot",
+						"__id": "techco-name-slot",
+						"name": "companyName",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "comp-name-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "techco-name-val",
+								"name": "TechCo-Ltd",
+								"value": "TechCo-Ltd"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "techco-founded-slot",
+						"name": "founded",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "comp-founded-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "techco-founded-val",
+								"name": "n2005",
+								"value": "n2005"
+							}
+						]
+					}
+				]
+			}
+		],
+		"relations": [
+			{
+				"__type": "Generalization",
+				"__id": "emp-gen-rel",
+				"isSubstitutable": true,
+				"source": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "employee-cls"
+				},
+				"target": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "person-cls"
+				},
+				"relationType": "GENERALIZATION"
+			},
+			{
+				"__type": "Generalization",
+				"__id": "mgr-gen-rel",
+				"isSubstitutable": true,
+				"source": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "manager-cls"
+				},
+				"target": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "employee-cls"
+				},
+				"relationType": "GENERALIZATION"
+			},
+			{
+				"__type": "Generalization",
+				"__id": "cust-gen-rel",
+				"isSubstitutable": true,
+				"source": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "customer-cls"
+				},
+				"target": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "person-cls"
+				},
+				"relationType": "GENERALIZATION"
+			},
+			{
+				"__type": "Association",
+				"__id": "works-for-assoc",
+				"name": "worksFor",
+				"sourceMultiplicity": "*",
+				"targetMultiplicity": "one",
+				"sourceAggregation": "NONE",
+				"targetAggregation": "NONE",
+				"visibility": "PUBLIC",
+				"source": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "employee-cls"
+				},
+				"target": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "company-cls"
+				},
+				"relationType": "ASSOCIATION"
+			},
+			{
+				"__type": "Association",
+				"__id": "has-addr-assoc",
+				"name": "hasAddress",
+				"sourceAggregation": "NONE",
+				"targetAggregation": "NONE",
+				"visibility": "PUBLIC",
+				"source": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "person-cls"
+				},
+				"target": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "address-dt"
+				},
+				"relationType": "ASSOCIATION"
+			},
+			{
+				"__type": "InstanceLink",
+				"__id": "alice-acme-link",
+				"name": "worksFor",
+				"association": {
+					"__type": "Reference",
+					"__refType": "Association",
+					"__value": "works-for-assoc"
+				},
+				"source": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "alice-inst"
+				},
+				"target": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "acme-inst"
+				},
+				"relationType": "INSTANCE_LINK"
+			},
+			{
+				"__type": "InstanceLink",
+				"__id": "bob-acme-link",
+				"name": "worksFor",
+				"association": {
+					"__type": "Reference",
+					"__refType": "Association",
+					"__value": "works-for-assoc"
+				},
+				"source": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "bob-inst"
+				},
+				"target": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "acme-inst"
+				},
+				"relationType": "INSTANCE_LINK"
+			},
+			{
+				"__type": "InstanceLink",
+				"__id": "charlie-acme-link",
+				"name": "worksFor",
+				"association": {
+					"__type": "Reference",
+					"__refType": "Association",
+					"__value": "works-for-assoc"
+				},
+				"source": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "charlie-inst"
+				},
+				"target": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "acme-inst"
+				},
+				"relationType": "INSTANCE_LINK"
+			},
+			{
+				"__type": "InstanceLink",
+				"__id": "diana-techco-link",
+				"name": "worksFor",
+				"association": {
+					"__type": "Reference",
+					"__refType": "Association",
+					"__value": "works-for-assoc"
+				},
+				"source": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "diana-inst"
+				},
+				"target": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "techco-inst"
+				},
+				"relationType": "INSTANCE_LINK"
+			},
+			{
+				"__type": "InstanceLink",
+				"__id": "alice-addr-link",
+				"name": "hasAddress",
+				"association": {
+					"__type": "Reference",
+					"__refType": "Association",
+					"__value": "has-addr-assoc"
+				},
+				"source": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "alice-inst"
+				},
+				"target": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "alice-addr-inst"
+				},
+				"relationType": "INSTANCE_LINK"
+			},
+			{
+				"__type": "InstanceLink",
+				"__id": "carol-addr-link",
+				"name": "hasAddress",
+				"association": {
+					"__type": "Reference",
+					"__refType": "Association",
+					"__value": "has-addr-assoc"
+				},
+				"source": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "carol-inst"
+				},
+				"target": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "carol-addr-inst"
+				},
+				"relationType": "INSTANCE_LINK"
+			},
+			{
+				"__type": "InstanceLink",
+				"__id": "dave-addr-link",
+				"name": "hasAddress",
+				"association": {
+					"__type": "Reference",
+					"__refType": "Association",
+					"__value": "has-addr-assoc"
+				},
+				"source": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "dave-inst"
+				},
+				"target": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "dave-addr-inst"
+				},
+				"relationType": "INSTANCE_LINK"
+			}
+		]
+	},
+	"metaInfos": [
+		{
+			"__type": "Size",
+			"__id": "size_person-cls",
+			"height": 100,
+			"width": 220,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "person-cls" }
+		},
+		{
+			"__type": "Position",
+			"__id": "pos_person-cls",
+			"x": 300,
+			"y": 20,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "person-cls" }
+		},
+		{
+			"__type": "Size",
+			"__id": "size_employee-cls",
+			"height": 100,
+			"width": 220,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "employee-cls" }
+		},
+		{
+			"__type": "Position",
+			"__id": "pos_employee-cls",
+			"x": 80,
+			"y": 200,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "employee-cls" }
+		},
+		{
+			"__type": "Size",
+			"__id": "size_manager-cls",
+			"height": 56,
+			"width": 180,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "manager-cls" }
+		},
+		{
+			"__type": "Position",
+			"__id": "pos_manager-cls",
+			"x": 80,
+			"y": 380,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "manager-cls" }
+		},
+		{
+			"__type": "Size",
+			"__id": "size_customer-cls",
+			"height": 78,
+			"width": 200,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "customer-cls" }
+		},
+		{
+			"__type": "Position",
+			"__id": "pos_customer-cls",
+			"x": 560,
+			"y": 200,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "customer-cls" }
+		},
+		{
+			"__type": "Size",
+			"__id": "size_address-dt",
+			"height": 100,
+			"width": 180,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "address-dt" }
+		},
+		{
+			"__type": "Position",
+			"__id": "pos_address-dt",
+			"x": 820,
+			"y": 20,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "address-dt" }
+		},
+		{
+			"__type": "Size",
+			"__id": "size_company-cls",
+			"height": 78,
+			"width": 200,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "company-cls" }
+		},
+		{
+			"__type": "Position",
+			"__id": "pos_company-cls",
+			"x": 820,
+			"y": 200,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "company-cls" }
+		},
+		{
+			"__type": "Size",
+			"__id": "size_alice-inst",
+			"height": 188,
+			"width": 260,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "alice-inst" }
+		},
+		{
+			"__type": "Position",
+			"__id": "pos_alice-inst",
+			"x": 50,
+			"y": 500,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "alice-inst" }
+		},
+		{
+			"__type": "Size",
+			"__id": "size_bob-inst",
+			"height": 166,
+			"width": 260,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "bob-inst" }
+		},
+		{
+			"__type": "Position",
+			"__id": "pos_bob-inst",
+			"x": 340,
+			"y": 500,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "bob-inst" }
+		},
+		{
+			"__type": "Size",
+			"__id": "size_charlie-inst",
+			"height": 188,
+			"width": 260,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "charlie-inst" }
+		},
+		{
+			"__type": "Position",
+			"__id": "pos_charlie-inst",
+			"x": 630,
+			"y": 500,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "charlie-inst" }
+		},
+		{
+			"__type": "Size",
+			"__id": "size_diana-inst",
+			"height": 166,
+			"width": 260,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "diana-inst" }
+		},
+		{
+			"__type": "Position",
+			"__id": "pos_diana-inst",
+			"x": 920,
+			"y": 500,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "diana-inst" }
+		},
+		{
+			"__type": "Size",
+			"__id": "size_carol-inst",
+			"height": 144,
+			"width": 260,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "carol-inst" }
+		},
+		{
+			"__type": "Position",
+			"__id": "pos_carol-inst",
+			"x": 50,
+			"y": 740,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "carol-inst" }
+		},
+		{
+			"__type": "Size",
+			"__id": "size_dave-inst",
+			"height": 122,
+			"width": 240,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "dave-inst" }
+		},
+		{
+			"__type": "Position",
+			"__id": "pos_dave-inst",
+			"x": 340,
+			"y": 740,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "dave-inst" }
+		},
+		{
+			"__type": "Size",
+			"__id": "size_acme-inst",
+			"height": 78,
+			"width": 200,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "acme-inst" }
+		},
+		{
+			"__type": "Position",
+			"__id": "pos_acme-inst",
+			"x": 630,
+			"y": 740,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "acme-inst" }
+		},
+		{
+			"__type": "Size",
+			"__id": "size_techco-inst",
+			"height": 78,
+			"width": 200,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "techco-inst" }
+		},
+		{
+			"__type": "Position",
+			"__id": "pos_techco-inst",
+			"x": 860,
+			"y": 740,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "techco-inst" }
+		},
+		{
+			"__type": "Size",
+			"__id": "size_alice-addr-inst",
+			"height": 100,
+			"width": 220,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "alice-addr-inst" }
+		},
+		{
+			"__type": "Position",
+			"__id": "pos_alice-addr-inst",
+			"x": 50,
+			"y": 920,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "alice-addr-inst" }
+		},
+		{
+			"__type": "Size",
+			"__id": "size_carol-addr-inst",
+			"height": 100,
+			"width": 220,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "carol-addr-inst" }
+		},
+		{
+			"__type": "Position",
+			"__id": "pos_carol-addr-inst",
+			"x": 300,
+			"y": 920,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "carol-addr-inst" }
+		},
+		{
+			"__type": "Size",
+			"__id": "size_dave-addr-inst",
+			"height": 100,
+			"width": 220,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "dave-addr-inst" }
+		},
+		{
+			"__type": "Position",
+			"__id": "pos_dave-addr-inst",
+			"x": 550,
+			"y": 920,
+			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "dave-addr-inst" }
+		}
+	]
+}

@@ -286,6 +286,13 @@
           "when": "bigUML.isRunning"
         },
         {
+          "id": "bigUML.panel.instance-explorer",
+          "name": "Instances",
+          "type": "webview",
+          "visibility": "collapsed",
+          "when": "bigUML.isRunning"
+        },
+        {
           "id": "bigUML.panel.outline",
           "name": "Diagram Outline",
           "type": "tree",
@@ -323,12 +330,14 @@
     }
   },
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onCustomEditor:bigUML.diagramView"
   ],
   "dependencies": {
     "@borkdominik-biguml/big-advancedsearch": "*",
     "@borkdominik-biguml/big-code-generation": "*",
     "@borkdominik-biguml/big-common": "*",
+    "@borkdominik-biguml/big-instance-explorer": "*",
     "@borkdominik-biguml/big-minimap": "*",
     "@borkdominik-biguml/big-outline": "*",
     "@borkdominik-biguml/big-property-palette": "*",

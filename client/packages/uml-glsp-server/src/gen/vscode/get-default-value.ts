@@ -326,6 +326,10 @@ const defaultMapping: Record<string, DefaultMappingEntry[]> = {
             propertyType: 'Visibility'
         },
         {
+            property: 'classifier',
+            propertyType: 'InstanceClassifier'
+        },
+        {
             property: 'slots',
             propertyType: 'Slot'
         }
@@ -352,6 +356,28 @@ const defaultMapping: Record<string, DefaultMappingEntry[]> = {
         }
     ],
     Relation: [
+        {
+            property: 'source',
+            propertyType: 'Node'
+        },
+        {
+            property: 'target',
+            propertyType: 'Node'
+        },
+        {
+            property: 'relationType',
+            propertyType: 'RelationType'
+        }
+    ],
+    InstanceLink: [
+        {
+            property: 'name',
+            propertyType: 'string'
+        },
+        {
+            property: 'association',
+            propertyType: 'Association'
+        },
         {
             property: 'source',
             propertyType: 'Node'
