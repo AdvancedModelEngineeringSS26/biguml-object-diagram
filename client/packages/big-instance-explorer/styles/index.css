@@ -7,12 +7,6 @@
  * SPDX-License-Identifier: MIT
  **********************************************************************************/
 
-html,
-body,
-#root {
-    height: 100%;
-}
-
 body {
     margin: 0;
     color: var(--vscode-foreground);
@@ -31,7 +25,6 @@ input {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    height: 100%;
     padding: 10px;
     box-sizing: border-box;
 }
@@ -68,8 +61,6 @@ input {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    overflow: auto;
-    min-height: 0;
 }
 
 .instance-explorer__group {
@@ -161,17 +152,18 @@ input {
 }
 
 .instance-explorer__slots {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: minmax(0, auto) auto minmax(0, 1fr) auto;
     padding: 0 10px 8px 28px;
-    gap: 4px;
+    row-gap: 4px;
 }
 
 .instance-explorer__slot {
     display: grid;
-    grid-template-columns: minmax(0, auto) auto minmax(0, 1fr) auto;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
     align-items: center;
-    gap: 6px;
+    column-gap: 6px;
     border-radius: 6px;
     padding: 4px 6px;
 }
@@ -200,6 +192,28 @@ input {
     min-width: 0;
     padding-top: 4px;
     padding-bottom: 4px;
+}
+
+.instance-explorer__link-peer {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border: 0;
+    background: transparent;
+    color: var(--vscode-textLink-foreground, var(--vscode-foreground));
+    padding: 0;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+}
+
+.instance-explorer__link-peer:hover {
+    text-decoration: underline;
+}
+
+.instance-explorer__row--m2m {
+    padding-left: 28px;
 }
 
 .instance-explorer__warning {

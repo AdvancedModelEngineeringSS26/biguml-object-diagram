@@ -24,12 +24,22 @@ export interface SlotSummary {
     diagnostics: DiagnosticSummary[];
 }
 
+export interface InstanceLinkSummary {
+    id: string;
+    relationName: string;
+    direction: 'outgoing' | 'incoming';
+    peerInstanceId: string;
+    peerInstanceName: string;
+    peerClassifierName?: string;
+}
+
 export interface InstanceSummary {
     id: string;
     name: string;
     classifierId?: string;
     classifierName?: string;
     slots: SlotSummary[];
+    links: InstanceLinkSummary[];
     diagnostics: DiagnosticSummary[];
 }
 
@@ -38,6 +48,23 @@ export interface ClassifierGroup {
     classifierName: string;
     classifierType: ClassifierType;
     instances: InstanceSummary[];
+}
+
+export interface ManyToManyLink {
+    id: string;
+    sourceInstanceId: string;
+    sourceInstanceName: string;
+    sourceClassifierName?: string;
+    targetInstanceId: string;
+    targetInstanceName: string;
+    targetClassifierName?: string;
+}
+
+export interface ManyToManyRelationSection {
+    id: string;
+    name: string;
+    relationType: string;
+    links: ManyToManyLink[];
 }
 
 export interface RequestInstanceExplorerDataAction extends RequestAction<InstanceExplorerDataResponse> {
@@ -64,6 +91,7 @@ export interface InstanceExplorerDataResponse extends ResponseAction {
     kind: typeof InstanceExplorerDataResponse.KIND;
     classifierGroups: ClassifierGroup[];
     unclassified: InstanceSummary[];
+    manyToManyRelations: ManyToManyRelationSection[];
 }
 
 export namespace InstanceExplorerDataResponse {
@@ -80,7 +108,8 @@ export namespace InstanceExplorerDataResponse {
             kind: KIND,
             responseId: options?.responseId ?? '',
             classifierGroups: options?.classifierGroups ?? [],
-            unclassified: options?.unclassified ?? []
+            unclassified: options?.unclassified ?? [],
+            manyToManyRelations: options?.manyToManyRelations ?? []
         };
     }
 }

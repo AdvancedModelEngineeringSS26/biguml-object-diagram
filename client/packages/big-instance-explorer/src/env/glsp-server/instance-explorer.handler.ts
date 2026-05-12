@@ -16,10 +16,14 @@ import {
     type LiteralSpecification,
     type Property,
     type Slot,
+    isAssociation,
     isClass,
     isDataType,
+    isGeneralization,
+    isInstanceLink,
     isInstanceSpecification,
     isInterface,
+    isInterfaceRealization,
     isProperty,
     isSlot
 } from '@borkdominik-biguml/uml-model-server/grammar';
@@ -41,7 +45,10 @@ import {
     type ClassifierGroup,
     type ClassifierType,
     type DiagnosticSummary,
+    type InstanceLinkSummary,
     type InstanceSummary,
+    type ManyToManyLink,
+    type ManyToManyRelationSection,
     type SlotSummary
 } from '../common/index.js';
 
@@ -70,6 +77,7 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
 
     execute(_action: RequestInstanceExplorerDataAction): MaybePromise<any[]> {
         const classifiersById = this.collectClassifiers();
+        const { linksByInstance, manyToManyRelations } = this.routeInstanceLinks();
         const classifierGroups = new Map<string, ClassifierGroup>();
         const unclassified: InstanceSummary[] = [];
 
@@ -79,6 +87,7 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
             }
 
             const summary = this.summarizeInstance(node, classifiersById);
+            summary.links = (linksByInstance.get(node.__id) ?? []).sort(compareLinks);
             if (summary.classifierId) {
                 const info = classifiersById.get(summary.classifierId)!;
                 let group = classifierGroups.get(summary.classifierId);
@@ -107,9 +116,87 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
         return [
             InstanceExplorerDataResponse.create({
                 classifierGroups: groups,
-                unclassified: unclassified.sort(compareInstances)
+                unclassified: unclassified.sort(compareInstances),
+                manyToManyRelations: manyToManyRelations.sort((l, r) => l.name.localeCompare(r.name))
             })
         ];
+    }
+
+    protected routeInstanceLinks(): {
+        linksByInstance: Map<string, InstanceLinkSummary[]>;
+        manyToManyRelations: ManyToManyRelationSection[];
+    } {
+        const linksByInstance = new Map<string, InstanceLinkSummary[]>();
+        const m2mByAssociation = new Map<string, ManyToManyRelationSection>();
+
+        for (const node of streamAst(this.modelState.semanticRoot)) {
+            if (!isInstanceLink(node)) continue;
+
+            const association = node.association?.ref;
+            const sourceInst = node.source?.ref;
+            const targetInst = node.target?.ref;
+            if (!isAssociation(association) || !isInstanceSpecification(sourceInst) || !isInstanceSpecification(targetInst)) {
+                continue;
+            }
+
+            const sourceMany = isManyMultiplicity(association.sourceMultiplicity);
+            const targetMany = isManyMultiplicity(association.targetMultiplicity);
+            const relationName = node.name || association.name || association.__id;
+
+            if (sourceMany && targetMany) {
+                const section = m2mByAssociation.get(association.__id) ?? {
+                    id: association.__id,
+                    name: association.name || relationName,
+                    relationType: association.$type,
+                    links: [] as ManyToManyLink[]
+                };
+                section.links.push({
+                    id: node.__id,
+                    sourceInstanceId: sourceInst.__id,
+                    sourceInstanceName: sourceInst.name,
+                    sourceClassifierName: classifierNameOf(sourceInst),
+                    targetInstanceId: targetInst.__id,
+                    targetInstanceName: targetInst.name,
+                    targetClassifierName: classifierNameOf(targetInst)
+                });
+                m2mByAssociation.set(association.__id, section);
+                continue;
+            }
+
+            // 1-1 or 1-N: show on the side where the OTHER end is single
+            const showOnSource = !targetMany;
+            const showOnTarget = !sourceMany;
+
+            if (showOnSource) {
+                addLink(linksByInstance, sourceInst.__id, {
+                    id: node.__id,
+                    relationName,
+                    direction: 'outgoing',
+                    peerInstanceId: targetInst.__id,
+                    peerInstanceName: targetInst.name,
+                    peerClassifierName: classifierNameOf(targetInst)
+                });
+            }
+            if (showOnTarget) {
+                addLink(linksByInstance, targetInst.__id, {
+                    id: node.__id,
+                    relationName,
+                    direction: 'incoming',
+                    peerInstanceId: sourceInst.__id,
+                    peerInstanceName: sourceInst.name,
+                    peerClassifierName: classifierNameOf(sourceInst)
+                });
+            }
+        }
+
+        for (const section of m2mByAssociation.values()) {
+            section.links.sort((l, r) => {
+                const sourceCmp = l.sourceInstanceName.localeCompare(r.sourceInstanceName);
+                return sourceCmp !== 0 ? sourceCmp : l.targetInstanceName.localeCompare(r.targetInstanceName);
+            });
+        }
+
+        return { linksByInstance, manyToManyRelations: Array.from(m2mByAssociation.values()) };
     }
 
     protected collectClassifiers(): Map<string, ClassifierInfo> {
@@ -137,6 +224,10 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
                 message: 'Instance has no classifier set.'
             });
         } else {
+            const hierarchyIds = new Set(
+                collectClassifierHierarchy(resolvedClassifier.classifier, this.modelState).map(c => c.__id)
+            );
+
             const matchedPropertyIds = new Set<string>();
             for (const slotSummary of slotSummaries) {
                 const slot = this.modelState.index.findSemanticElement(slotSummary.id, isSlot);
@@ -145,10 +236,10 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
                 matchedPropertyIds.add(feature.__id);
 
                 const owner = owningClassifier(feature);
-                if (owner && owner.__id !== resolvedClassifier.classifier.__id) {
+                if (owner && !hierarchyIds.has(owner.__id)) {
                     slotSummary.diagnostics.push({
                         severity: 'warning',
-                        message: `Slot belongs to ${owner.name}, not to ${resolvedClassifier.classifier.name}.`
+                        message: `Slot belongs to ${owner.name}, which is not in the inheritance hierarchy of ${resolvedClassifier.classifier.name}.`
                     });
                 }
             }
@@ -170,6 +261,7 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
             classifierId: resolvedClassifier?.classifier.__id,
             classifierName: resolvedClassifier?.classifier.name,
             slots: slotSummaries.sort((left, right) => left.featureName.localeCompare(right.featureName)),
+            links: [],
             diagnostics
         };
     }
@@ -237,6 +329,10 @@ export class CreateClassifierInstanceOperationHandler extends OperationHandler {
         const instanceName = baseName;
         const containerPath = '/diagram/entities/-';
 
+        const allProperties = collectClassifierHierarchy(classifier, this.modelState).flatMap(c =>
+            Array.isArray(c.properties) ? c.properties : []
+        );
+
         const instanceValue: SerializedRecordNode = {
             $type: 'InstanceSpecification',
             __id: instanceId,
@@ -245,7 +341,7 @@ export class CreateClassifierInstanceOperationHandler extends OperationHandler {
                 ref: { __id: classifier.__id, __documentUri: classifier.$document?.uri },
                 $refText: classifier.name
             },
-            slots: classifier.properties.map(property => createSlotValue(property))
+            slots: allProperties.map(property => createSlotValue(property))
         };
 
         for (const { property, defaultValue } of getDefaultProperties(ClassDiagramNodeTypes.INSTANCE_SPECIFICATION)) {
@@ -257,7 +353,7 @@ export class CreateClassifierInstanceOperationHandler extends OperationHandler {
         const classifierPosition = this.modelState.index.findPosition(classifier.__id);
         const classifierSize = this.modelState.index.findSize(classifier.__id);
         const width = Math.max(INSTANCE_MIN_WIDTH, classifier.name.length * INSTANCE_NAME_CHAR_WIDTH + INSTANCE_NAME_PADDING);
-        const height = Math.max(INSTANCE_MIN_HEIGHT, INSTANCE_HEADER_HEIGHT + classifier.properties.length * INSTANCE_SLOT_ROW_HEIGHT);
+        const height = Math.max(INSTANCE_MIN_HEIGHT, INSTANCE_HEADER_HEIGHT + allProperties.length * INSTANCE_SLOT_ROW_HEIGHT);
         const x = (classifierPosition?.x ?? 0) + (classifierSize?.width ?? INSTANCE_FALLBACK_CLASSIFIER_WIDTH) + INSTANCE_PLACEMENT_GAP;
         const y = classifierPosition?.y ?? 0;
 
@@ -346,6 +442,31 @@ function owningClassifier(property: Property): SupportedClassifier | undefined {
     return isSupportedClassifier(property.$container) ? property.$container : undefined;
 }
 
+function collectClassifierHierarchy(start: SupportedClassifier, modelState: DiagramModelState): SupportedClassifier[] {
+    const relations = modelState.semanticRoot.diagram.relations ?? [];
+    const visited = new Set<SupportedClassifier>();
+    const queue: SupportedClassifier[] = [start];
+    const result: SupportedClassifier[] = [];
+
+    while (queue.length > 0) {
+        const current = queue.shift()!;
+        if (visited.has(current)) continue;
+        visited.add(current);
+        result.push(current);
+
+        for (const rel of relations) {
+            if (!isGeneralization(rel) && !isInterfaceRealization(rel)) continue;
+            if (rel.source?.ref !== current) continue;
+            const parent = rel.target?.ref;
+            if (parent && isSupportedClassifier(parent)) {
+                queue.push(parent);
+            }
+        }
+    }
+
+    return result;
+}
+
 function multiplicityDiagnosticFor(property: Property, valueCount: number): DiagnosticSummary | undefined {
     const multiplicity = property.multiplicity?.trim();
     if (!multiplicity) {
@@ -397,6 +518,44 @@ function parseMultiplicity(multiplicity: string): { min: number; max?: number } 
 
 function compareInstances(left: InstanceSummary, right: InstanceSummary): number {
     return left.name.localeCompare(right.name);
+}
+
+function compareLinks(left: InstanceLinkSummary, right: InstanceLinkSummary): number {
+    const byName = left.relationName.localeCompare(right.relationName);
+    return byName !== 0 ? byName : left.peerInstanceName.localeCompare(right.peerInstanceName);
+}
+
+function addLink(map: Map<string, InstanceLinkSummary[]>, instanceId: string, link: InstanceLinkSummary): void {
+    const existing = map.get(instanceId);
+    if (existing) {
+        existing.push(link);
+    } else {
+        map.set(instanceId, [link]);
+    }
+}
+
+function classifierNameOf(instance: InstanceSpecification): string | undefined {
+    const ref = instance.classifier?.ref;
+    return ref && isSupportedClassifier(ref) ? ref.name : undefined;
+}
+
+function isManyMultiplicity(value: string | undefined): boolean {
+    if (!value) return false;
+    const trimmed = value.trim().toLowerCase();
+    if (trimmed === '' || trimmed === 'one' || trimmed === '1' || trimmed === '0..1' || trimmed === '1..1') {
+        return false;
+    }
+    if (trimmed === '*' || trimmed === 'many' || trimmed === 'n') return true;
+    if (/^\d+$/.test(trimmed)) {
+        return Number(trimmed) > 1;
+    }
+    const match = trimmed.match(/^(\d+)\.\.(\d+|\*|n)$/);
+    if (match) {
+        const max = match[2];
+        if (max === '*' || max === 'n') return true;
+        return Number(max) > 1;
+    }
+    return false;
 }
 
 function createSlotValue(property: Property): SerializedRecordNode {
