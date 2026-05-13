@@ -41,10 +41,12 @@ import {
     CreateClassifierInstanceOperation,
     InstanceExplorerDataResponse,
     RequestInstanceExplorerDataAction,
+    UpdateInstanceLinkEndOperation,
     UpdateInstanceSlotValuesOperation,
     type ClassifierGroup,
     type ClassifierType,
     type DiagnosticSummary,
+    type EligibleInstance,
     type InstanceLinkSummary,
     type InstanceSummary,
     type ManyToManyLink,
@@ -57,6 +59,12 @@ type SupportedClassifier = Class | Interface | DataType;
 interface ClassifierInfo {
     classifier: SupportedClassifier;
     classifierType: ClassifierType;
+}
+
+interface InstanceMeta {
+    node: InstanceSpecification;
+    classifier?: SupportedClassifier;
+    hierarchy: Set<string>;
 }
 
 const INSTANCE_HEADER_HEIGHT = 34;
@@ -77,7 +85,8 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
 
     execute(_action: RequestInstanceExplorerDataAction): MaybePromise<any[]> {
         const classifiersById = this.collectClassifiers();
-        const { linksByInstance, manyToManyRelations } = this.routeInstanceLinks();
+        const instances = this.collectInstances(classifiersById);
+        const { linksByInstance, manyToManyRelations } = this.routeInstanceLinks(instances);
         const classifierGroups = new Map<string, ClassifierGroup>();
         const unclassified: InstanceSummary[] = [];
 
@@ -122,12 +131,25 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
         ];
     }
 
-    protected routeInstanceLinks(): {
+    protected routeInstanceLinks(instances: InstanceMeta[]): {
         linksByInstance: Map<string, InstanceLinkSummary[]>;
         manyToManyRelations: ManyToManyRelationSection[];
     } {
         const linksByInstance = new Map<string, InstanceLinkSummary[]>();
         const m2mByAssociation = new Map<string, ManyToManyRelationSection>();
+        const eligibilityCache = new Map<string, { sources: EligibleInstance[]; targets: EligibleInstance[] }>();
+
+        const getEligibility = (associationId: string, sourceTypeId: string | undefined, targetTypeId: string | undefined) => {
+            let cached = eligibilityCache.get(associationId);
+            if (!cached) {
+                cached = {
+                    sources: computeEligibleInstances(instances, sourceTypeId),
+                    targets: computeEligibleInstances(instances, targetTypeId)
+                };
+                eligibilityCache.set(associationId, cached);
+            }
+            return cached;
+        };
 
         for (const node of streamAst(this.modelState.semanticRoot)) {
             if (!isInstanceLink(node)) continue;
@@ -142,6 +164,9 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
             const sourceMany = isManyMultiplicity(association.sourceMultiplicity);
             const targetMany = isManyMultiplicity(association.targetMultiplicity);
             const relationName = node.name || association.name || association.__id;
+            const sourceTypeId = isSupportedClassifier(association.source?.ref) ? association.source.ref.__id : undefined;
+            const targetTypeId = isSupportedClassifier(association.target?.ref) ? association.target.ref.__id : undefined;
+            const { sources: eligibleSources, targets: eligibleTargets } = getEligibility(association.__id, sourceTypeId, targetTypeId);
 
             if (sourceMany && targetMany) {
                 const section = m2mByAssociation.get(association.__id) ?? {
@@ -157,7 +182,9 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
                     sourceClassifierName: classifierNameOf(sourceInst),
                     targetInstanceId: targetInst.__id,
                     targetInstanceName: targetInst.name,
-                    targetClassifierName: classifierNameOf(targetInst)
+                    targetClassifierName: classifierNameOf(targetInst),
+                    eligibleSources,
+                    eligibleTargets
                 });
                 m2mByAssociation.set(association.__id, section);
                 continue;
@@ -174,7 +201,9 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
                     direction: 'outgoing',
                     peerInstanceId: targetInst.__id,
                     peerInstanceName: targetInst.name,
-                    peerClassifierName: classifierNameOf(targetInst)
+                    peerClassifierName: classifierNameOf(targetInst),
+                    peerEnd: 'target',
+                    eligiblePeers: eligibleTargets
                 });
             }
             if (showOnTarget) {
@@ -184,7 +213,9 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
                     direction: 'incoming',
                     peerInstanceId: sourceInst.__id,
                     peerInstanceName: sourceInst.name,
-                    peerClassifierName: classifierNameOf(sourceInst)
+                    peerClassifierName: classifierNameOf(sourceInst),
+                    peerEnd: 'source',
+                    eligiblePeers: eligibleSources
                 });
             }
         }
@@ -197,6 +228,21 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
         }
 
         return { linksByInstance, manyToManyRelations: Array.from(m2mByAssociation.values()) };
+    }
+
+    protected collectInstances(classifiersById: Map<string, ClassifierInfo>): InstanceMeta[] {
+        const result: InstanceMeta[] = [];
+        for (const node of streamAst(this.modelState.semanticRoot)) {
+            if (!isInstanceSpecification(node)) continue;
+
+            const classifierRef = node.classifier?.ref;
+            const info = classifierRef && isSupportedClassifier(classifierRef) ? classifiersById.get(classifierRef.__id) : undefined;
+            const hierarchy = info
+                ? new Set(collectClassifierHierarchy(info.classifier, this.modelState).map(c => c.__id))
+                : new Set<string>();
+            result.push({ node, classifier: info?.classifier, hierarchy });
+        }
+        return result;
     }
 
     protected collectClassifiers(): Map<string, ClassifierInfo> {
@@ -424,6 +470,39 @@ export class UpdateInstanceSlotValuesOperationHandler extends OperationHandler {
     }
 }
 
+@injectable()
+export class UpdateInstanceLinkEndOperationHandler extends OperationHandler {
+    override operationType = UpdateInstanceLinkEndOperation.KIND;
+
+    declare readonly modelState: DiagramModelState;
+
+    override createCommand(operation: UpdateInstanceLinkEndOperation): Command | undefined {
+        const link = this.modelState.index.findSemanticElement(operation.linkId, isInstanceLink);
+        const linkPath = this.modelState.index.findPath(operation.linkId);
+        const newInstance = this.modelState.index.findSemanticElement(operation.newInstanceId, isInstanceSpecification);
+        if (!link || !linkPath || !newInstance) {
+            return undefined;
+        }
+
+        return new ModelPatchCommand(
+            this.modelState,
+            JSON.stringify([
+                {
+                    op: 'replace',
+                    path: `${linkPath}/${operation.end}`,
+                    value: {
+                        ref: {
+                            __id: newInstance.__id,
+                            __documentUri: newInstance.$document?.uri
+                        },
+                        $refText: newInstance.name
+                    }
+                }
+            ])
+        );
+    }
+}
+
 function classifierTypeOf(classifier: SupportedClassifier): ClassifierType {
     if (isInterface(classifier)) {
         return 'Interface';
@@ -537,6 +616,20 @@ function addLink(map: Map<string, InstanceLinkSummary[]>, instanceId: string, li
 function classifierNameOf(instance: InstanceSpecification): string | undefined {
     const ref = instance.classifier?.ref;
     return ref && isSupportedClassifier(ref) ? ref.name : undefined;
+}
+
+function computeEligibleInstances(instances: InstanceMeta[], classifierId: string | undefined): EligibleInstance[] {
+    if (!classifierId) {
+        return [];
+    }
+    return instances
+        .filter(meta => meta.hierarchy.has(classifierId))
+        .map(meta => ({
+            id: meta.node.__id,
+            name: meta.node.name,
+            classifierName: meta.classifier?.name
+        }))
+        .sort((l, r) => l.name.localeCompare(r.name));
 }
 
 function isManyMultiplicity(value: string | undefined): boolean {

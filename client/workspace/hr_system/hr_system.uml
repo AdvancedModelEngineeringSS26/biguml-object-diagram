@@ -1383,8 +1383,8 @@
 							{
 								"__type": "LiteralSpecification",
 								"__id": "alpha-project-inst-budget-val",
-								"name": "250000",
-								"value": "250000"
+								"name": "n250000",
+								"value": "n250000"
 							}
 						]
 					}
@@ -1432,8 +1432,8 @@
 							{
 								"__type": "LiteralSpecification",
 								"__id": "beta-project-inst-budget-val",
-								"name": "120000",
-								"value": "120000"
+								"name": "n120000",
+								"value": "n120000"
 							}
 						]
 					}
@@ -1481,8 +1481,8 @@
 							{
 								"__type": "LiteralSpecification",
 								"__id": "gamma-project-inst-budget-val",
-								"name": "80000",
-								"value": "80000"
+								"name": "n80000",
+								"value": "n80000"
 							}
 						]
 					}

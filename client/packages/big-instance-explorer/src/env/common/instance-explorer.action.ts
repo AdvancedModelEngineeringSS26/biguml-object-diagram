@@ -24,6 +24,12 @@ export interface SlotSummary {
     diagnostics: DiagnosticSummary[];
 }
 
+export interface EligibleInstance {
+    id: string;
+    name: string;
+    classifierName?: string;
+}
+
 export interface InstanceLinkSummary {
     id: string;
     relationName: string;
@@ -31,6 +37,8 @@ export interface InstanceLinkSummary {
     peerInstanceId: string;
     peerInstanceName: string;
     peerClassifierName?: string;
+    peerEnd: 'source' | 'target';
+    eligiblePeers: EligibleInstance[];
 }
 
 export interface InstanceSummary {
@@ -58,6 +66,8 @@ export interface ManyToManyLink {
     targetInstanceId: string;
     targetInstanceName: string;
     targetClassifierName?: string;
+    eligibleSources: EligibleInstance[];
+    eligibleTargets: EligibleInstance[];
 }
 
 export interface ManyToManyRelationSection {
@@ -154,6 +164,31 @@ export namespace UpdateInstanceSlotValuesOperation {
             isOperation: true,
             slotId: options.slotId,
             values: options.values
+        };
+    }
+}
+
+export interface UpdateInstanceLinkEndOperation extends Operation {
+    kind: typeof UpdateInstanceLinkEndOperation.KIND;
+    linkId: string;
+    end: 'source' | 'target';
+    newInstanceId: string;
+}
+
+export namespace UpdateInstanceLinkEndOperation {
+    export const KIND = 'updateInstanceLinkEndOperation';
+
+    export function is(object: unknown): object is UpdateInstanceLinkEndOperation {
+        return Action.hasKind(object, KIND);
+    }
+
+    export function create(options: { linkId: string; end: 'source' | 'target'; newInstanceId: string }): UpdateInstanceLinkEndOperation {
+        return {
+            kind: KIND,
+            isOperation: true,
+            linkId: options.linkId,
+            end: options.end,
+            newInstanceId: options.newInstanceId
         };
     }
 }

@@ -14,10 +14,12 @@ import { useContext, useEffect, useState, type ChangeEvent, type KeyboardEvent, 
 import {
     CreateClassifierInstanceOperation,
     InstanceExplorerDataResponse,
+    UpdateInstanceLinkEndOperation,
     UpdateInstanceSlotValuesOperation,
     type ClassifierGroup,
     type ClassifierType,
     type DiagnosticSummary,
+    type EligibleInstance,
     type InstanceLinkSummary,
     type InstanceSummary,
     type ManyToManyRelationSection,
@@ -32,6 +34,11 @@ interface EditState {
     value: string;
 }
 
+interface LinkEditState {
+    linkId: string;
+    end: 'source' | 'target';
+}
+
 export function InstanceExplorer(): ReactElement {
     const { clientId, dispatchAction, listenAction } = useContext(VSCodeContext);
     const [classifierGroups, setClassifierGroups] = useState<ClassifierGroup[]>([]);
@@ -41,6 +48,7 @@ export function InstanceExplorer(): ReactElement {
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
     const [expandedInstances, setExpandedInstances] = useState<Record<string, boolean>>({});
     const [editState, setEditState] = useState<EditState | undefined>();
+    const [linkEditState, setLinkEditState] = useState<LinkEditState | undefined>();
 
     useEffect(() => {
         listenAction(action => {
@@ -105,6 +113,49 @@ export function InstanceExplorer(): ReactElement {
         }
 
         dispatchAction(CreateClassifierInstanceOperation.create({ classifierId }));
+    };
+
+    const commitLinkEdit = (linkId: string, end: 'source' | 'target', newInstanceId: string) => {
+        if (clientId && newInstanceId) {
+            dispatchAction(UpdateInstanceLinkEndOperation.create({ linkId, end, newInstanceId }));
+        }
+        setLinkEditState(undefined);
+    };
+
+    const renderLinkPicker = (linkId: string, end: 'source' | 'target', eligible: EligibleInstance[], currentId: string) => {
+        const options = eligible.some(candidate => candidate.id === currentId)
+            ? eligible
+            : [{ id: currentId, name: currentId, classifierName: undefined } as EligibleInstance, ...eligible];
+
+        return (
+            <select
+                autoFocus
+                className='instance-explorer__input instance-explorer__slot-input'
+                defaultValue={currentId}
+                onBlur={() => setLinkEditState(undefined)}
+                onChange={event => {
+                    const nextId = event.target.value;
+                    if (nextId && nextId !== currentId) {
+                        commitLinkEdit(linkId, end, nextId);
+                    } else {
+                        setLinkEditState(undefined);
+                    }
+                }}
+                onClick={event => event.stopPropagation()}
+                onDoubleClick={event => event.stopPropagation()}
+                onKeyDown={(event: KeyboardEvent<HTMLSelectElement>) => {
+                    if (event.key === 'Escape') {
+                        setLinkEditState(undefined);
+                    }
+                }}
+            >
+                {options.map(candidate => (
+                    <option key={candidate.id} value={candidate.id}>
+                        {candidate.classifierName ? `${candidate.name} : ${candidate.classifierName}` : candidate.name}
+                    </option>
+                ))}
+            </select>
+        );
     };
 
     const commitEdit = (current: EditState | undefined) => {
@@ -250,21 +301,34 @@ export function InstanceExplorer(): ReactElement {
     const renderLink = (link: InstanceLinkSummary) => {
         const arrow = link.direction === 'outgoing' ? '→' : '←';
         const peerLabel = link.peerClassifierName ? `${link.peerInstanceName} : ${link.peerClassifierName}` : link.peerInstanceName;
+        const isEditingPeer = linkEditState?.linkId === link.id && linkEditState.end === link.peerEnd;
         return (
             <div key={link.id} className='instance-explorer__slot instance-explorer__link'>
                 <span className='instance-explorer__slot-feature'>{link.relationName}</span>
                 <span className='instance-explorer__slot-equals'>{arrow}</span>
-                <button
-                    className='instance-explorer__link-peer'
-                    onClick={event => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        navigateTo(link.peerInstanceId);
-                    }}
-                    type='button'
-                >
-                    {peerLabel}
-                </button>
+                {isEditingPeer ? (
+                    renderLinkPicker(link.id, link.peerEnd, link.eligiblePeers, link.peerInstanceId)
+                ) : (
+                    <button
+                        className='instance-explorer__link-peer'
+                        onClick={event => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            navigateTo(link.peerInstanceId);
+                        }}
+                        onDoubleClick={event => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            if (link.eligiblePeers.length > 0) {
+                                setLinkEditState({ linkId: link.id, end: link.peerEnd });
+                            }
+                        }}
+                        title='Double-click to change to another eligible instance'
+                        type='button'
+                    >
+                        {peerLabel}
+                    </button>
+                )}
                 <span />
             </div>
         );
@@ -354,34 +418,66 @@ export function InstanceExplorer(): ReactElement {
                 </div>
                 {expanded ? (
                     <div className='instance-explorer__children'>
-                        {section.links.map(link => (
-                            <div key={link.id} className='instance-explorer__row instance-explorer__row--m2m'>
-                                <span className='codicon codicon-symbol-field instance-explorer__icon' />
-                                <button
-                                    className='instance-explorer__link-peer'
-                                    onClick={event => {
-                                        event.preventDefault();
-                                        event.stopPropagation();
-                                        navigateTo(link.sourceInstanceId);
-                                    }}
-                                    type='button'
-                                >
-                                    {link.sourceClassifierName ? `${link.sourceInstanceName} : ${link.sourceClassifierName}` : link.sourceInstanceName}
-                                </button>
-                                <span className='instance-explorer__slot-equals'>→</span>
-                                <button
-                                    className='instance-explorer__link-peer'
-                                    onClick={event => {
-                                        event.preventDefault();
-                                        event.stopPropagation();
-                                        navigateTo(link.targetInstanceId);
-                                    }}
-                                    type='button'
-                                >
-                                    {link.targetClassifierName ? `${link.targetInstanceName} : ${link.targetClassifierName}` : link.targetInstanceName}
-                                </button>
-                            </div>
-                        ))}
+                        {section.links.map(link => {
+                            const isEditingSource = linkEditState?.linkId === link.id && linkEditState.end === 'source';
+                            const isEditingTarget = linkEditState?.linkId === link.id && linkEditState.end === 'target';
+                            return (
+                                <div key={link.id} className='instance-explorer__row instance-explorer__row--m2m'>
+                                    <span className='codicon codicon-symbol-field instance-explorer__icon' />
+                                    {isEditingSource ? (
+                                        renderLinkPicker(link.id, 'source', link.eligibleSources, link.sourceInstanceId)
+                                    ) : (
+                                        <button
+                                            className='instance-explorer__link-peer'
+                                            onClick={event => {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+                                                navigateTo(link.sourceInstanceId);
+                                            }}
+                                            onDoubleClick={event => {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+                                                if (link.eligibleSources.length > 0) {
+                                                    setLinkEditState({ linkId: link.id, end: 'source' });
+                                                }
+                                            }}
+                                            title='Double-click to change to another eligible instance'
+                                            type='button'
+                                        >
+                                            {link.sourceClassifierName
+                                                ? `${link.sourceInstanceName} : ${link.sourceClassifierName}`
+                                                : link.sourceInstanceName}
+                                        </button>
+                                    )}
+                                    <span className='instance-explorer__slot-equals'>→</span>
+                                    {isEditingTarget ? (
+                                        renderLinkPicker(link.id, 'target', link.eligibleTargets, link.targetInstanceId)
+                                    ) : (
+                                        <button
+                                            className='instance-explorer__link-peer'
+                                            onClick={event => {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+                                                navigateTo(link.targetInstanceId);
+                                            }}
+                                            onDoubleClick={event => {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+                                                if (link.eligibleTargets.length > 0) {
+                                                    setLinkEditState({ linkId: link.id, end: 'target' });
+                                                }
+                                            }}
+                                            title='Double-click to change to another eligible instance'
+                                            type='button'
+                                        >
+                                            {link.targetClassifierName
+                                                ? `${link.targetInstanceName} : ${link.targetClassifierName}`
+                                                : link.targetInstanceName}
+                                        </button>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 ) : null}
             </section>
