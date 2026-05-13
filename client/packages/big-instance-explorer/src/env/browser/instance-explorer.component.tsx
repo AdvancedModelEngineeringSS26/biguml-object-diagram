@@ -165,17 +165,17 @@ export function InstanceExplorer(): ReactElement {
 
         if (clientId) {
             if (current.kind === 'slot') {
-                dispatchAction(
-                    UpdateInstanceSlotValuesOperation.create({
+            dispatchAction(
+                UpdateInstanceSlotValuesOperation.create({
                         slotId: current.targetId,
-                        values: parseValues(current.value)
-                    })
-                );
+                    values: parseValues(current.value)
+                })
+            );
             } else {
                 const trimmed = current.value.trim();
                 if (trimmed.length > 0) {
                     dispatchAction(UpdateOperation.create(current.targetId, 'name', trimmed));
-                }
+        }
             }
         }
 
@@ -368,21 +368,21 @@ export function InstanceExplorer(): ReactElement {
                                 }}
                             />
                         ) : (
-                            <span
-                                className='instance-explorer__label'
-                                onClick={event => {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    navigateTo(group.classifierId);
-                                }}
+                        <span
+                            className='instance-explorer__label'
+                            onClick={event => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                navigateTo(group.classifierId);
+                            }}
                                 onDoubleClick={event => {
                                     event.preventDefault();
                                     event.stopPropagation();
                                     setEditState({ kind: 'classifier', targetId: group.classifierId, value: group.classifierName });
                                 }}
-                            >
-                                {group.classifierName}
-                            </span>
+                        >
+                            {group.classifierName}
+                        </span>
                         )}
                     </button>
                     <span className='instance-explorer__count'>{group.instances.length}</span>

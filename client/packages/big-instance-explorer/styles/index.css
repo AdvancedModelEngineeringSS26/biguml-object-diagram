@@ -7,6 +7,12 @@
  * SPDX-License-Identifier: MIT
  **********************************************************************************/
 
+html,
+body,
+#root {
+    height: 100%;
+}
+
 body {
     margin: 0;
     color: var(--vscode-foreground);
@@ -25,6 +31,7 @@ input {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    height: 100%;
     padding: 10px;
     box-sizing: border-box;
 }
@@ -61,6 +68,8 @@ input {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    overflow: auto;
+    min-height: 0;
 }
 
 .instance-explorer__group {
