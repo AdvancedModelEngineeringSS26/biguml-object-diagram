@@ -24,12 +24,30 @@ export interface SlotSummary {
     diagnostics: DiagnosticSummary[];
 }
 
+export interface EligibleInstance {
+    id: string;
+    name: string;
+    classifierName?: string;
+}
+
+export interface InstanceLinkSummary {
+    id: string;
+    relationName: string;
+    direction: 'outgoing' | 'incoming';
+    peerInstanceId: string;
+    peerInstanceName: string;
+    peerClassifierName?: string;
+    peerEnd: 'source' | 'target';
+    eligiblePeers: EligibleInstance[];
+}
+
 export interface InstanceSummary {
     id: string;
     name: string;
     classifierId?: string;
     classifierName?: string;
     slots: SlotSummary[];
+    links: InstanceLinkSummary[];
     diagnostics: DiagnosticSummary[];
 }
 
@@ -38,6 +56,25 @@ export interface ClassifierGroup {
     classifierName: string;
     classifierType: ClassifierType;
     instances: InstanceSummary[];
+}
+
+export interface ManyToManyLink {
+    id: string;
+    sourceInstanceId: string;
+    sourceInstanceName: string;
+    sourceClassifierName?: string;
+    targetInstanceId: string;
+    targetInstanceName: string;
+    targetClassifierName?: string;
+    eligibleSources: EligibleInstance[];
+    eligibleTargets: EligibleInstance[];
+}
+
+export interface ManyToManyRelationSection {
+    id: string;
+    name: string;
+    relationType: string;
+    links: ManyToManyLink[];
 }
 
 export interface RequestInstanceExplorerDataAction extends RequestAction<InstanceExplorerDataResponse> {
@@ -64,6 +101,7 @@ export interface InstanceExplorerDataResponse extends ResponseAction {
     kind: typeof InstanceExplorerDataResponse.KIND;
     classifierGroups: ClassifierGroup[];
     unclassified: InstanceSummary[];
+    manyToManyRelations: ManyToManyRelationSection[];
 }
 
 export namespace InstanceExplorerDataResponse {
@@ -80,7 +118,8 @@ export namespace InstanceExplorerDataResponse {
             kind: KIND,
             responseId: options?.responseId ?? '',
             classifierGroups: options?.classifierGroups ?? [],
-            unclassified: options?.unclassified ?? []
+            unclassified: options?.unclassified ?? [],
+            manyToManyRelations: options?.manyToManyRelations ?? []
         };
     }
 }
@@ -125,6 +164,31 @@ export namespace UpdateInstanceSlotValuesOperation {
             isOperation: true,
             slotId: options.slotId,
             values: options.values
+        };
+    }
+}
+
+export interface UpdateInstanceLinkEndOperation extends Operation {
+    kind: typeof UpdateInstanceLinkEndOperation.KIND;
+    linkId: string;
+    end: 'source' | 'target';
+    newInstanceId: string;
+}
+
+export namespace UpdateInstanceLinkEndOperation {
+    export const KIND = 'updateInstanceLinkEndOperation';
+
+    export function is(object: unknown): object is UpdateInstanceLinkEndOperation {
+        return Action.hasKind(object, KIND);
+    }
+
+    export function create(options: { linkId: string; end: 'source' | 'target'; newInstanceId: string }): UpdateInstanceLinkEndOperation {
+        return {
+            kind: KIND,
+            isOperation: true,
+            linkId: options.linkId,
+            end: options.end,
+            newInstanceId: options.newInstanceId
         };
     }
 }

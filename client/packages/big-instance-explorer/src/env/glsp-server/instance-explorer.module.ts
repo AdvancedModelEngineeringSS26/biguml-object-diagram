@@ -12,6 +12,7 @@ import type { ActionHandlerConstructor, InstanceMultiBinding, OperationHandlerCo
 import {
     CreateClassifierInstanceOperationHandler,
     RequestInstanceExplorerDataActionHandler,
+    UpdateInstanceLinkEndOperationHandler,
     UpdateInstanceSlotValuesOperationHandler
 } from './instance-explorer.handler.js';
 
@@ -23,6 +24,7 @@ class InstanceExplorerDiagramFeatureModule extends DiagramFeatureModule {
     override configureOperationHandlers(binding: InstanceMultiBinding<OperationHandlerConstructor>): void {
         binding.add(CreateClassifierInstanceOperationHandler);
         binding.add(UpdateInstanceSlotValuesOperationHandler);
+        binding.add(UpdateInstanceLinkEndOperationHandler);
     }
 }
 

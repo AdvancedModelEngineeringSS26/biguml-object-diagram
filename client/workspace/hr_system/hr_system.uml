@@ -1266,6 +1266,227 @@
 						]
 					}
 				]
+			},
+			{
+				"__type": "InstanceSpecification",
+				"__id": "a2393646a-b831-4c51-972b-06d0ef5941ea",
+				"name": "NewCompany1",
+				"visibility": "PUBLIC",
+				"classifier": {
+					"__type": "Reference",
+					"__refType": "InstanceClassifier",
+					"__value": "company-cls"
+				},
+				"slots": [
+					{
+						"__type": "Slot",
+						"__id": "ad0e8bfdf-3b44-4990-8d5b-22e37724e210",
+						"name": "companyName",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "comp-name-prop"
+						},
+						"values": []
+					},
+					{
+						"__type": "Slot",
+						"__id": "a0dd18681-a3f7-4af1-8659-95d45de48ff2",
+						"name": "founded",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "comp-founded-prop"
+						},
+						"values": []
+					}
+				]
+			},
+			{
+				"__type": "Class",
+				"__id": "project-cls",
+				"name": "Project",
+				"isAbstract": false,
+				"properties": [
+					{
+						"__type": "Property",
+						"__id": "project-name-prop",
+						"name": "projectName",
+						"isDerived": false,
+						"isOrdered": false,
+						"isStatic": false,
+						"isDerivedUnion": false,
+						"isReadOnly": false,
+						"isUnique": true,
+						"visibility": "PUBLIC",
+						"multiplicity": "one",
+						"aggregation": "NONE"
+					},
+					{
+						"__type": "Property",
+						"__id": "project-budget-prop",
+						"name": "budget",
+						"isDerived": false,
+						"isOrdered": false,
+						"isStatic": false,
+						"isDerivedUnion": false,
+						"isReadOnly": false,
+						"isUnique": true,
+						"visibility": "PUBLIC",
+						"aggregation": "NONE"
+					}
+				],
+				"operations": [],
+				"isActive": false,
+				"visibility": "PUBLIC",
+				"skip": false
+			},
+			{
+				"__type": "InstanceSpecification",
+				"__id": "alpha-project-inst",
+				"name": "alphaProject",
+				"visibility": "PUBLIC",
+				"classifier": {
+					"__type": "Reference",
+					"__refType": "InstanceClassifier",
+					"__value": "project-cls"
+				},
+				"slots": [
+					{
+						"__type": "Slot",
+						"__id": "alpha-project-inst-name-slot",
+						"name": "projectName",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "project-name-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "alpha-project-inst-name-val",
+								"name": "AlphaPlatform",
+								"value": "AlphaPlatform"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "alpha-project-inst-budget-slot",
+						"name": "budget",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "project-budget-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "alpha-project-inst-budget-val",
+								"name": "n250000",
+								"value": "n250000"
+							}
+						]
+					}
+				]
+			},
+			{
+				"__type": "InstanceSpecification",
+				"__id": "beta-project-inst",
+				"name": "betaProject",
+				"visibility": "PUBLIC",
+				"classifier": {
+					"__type": "Reference",
+					"__refType": "InstanceClassifier",
+					"__value": "project-cls"
+				},
+				"slots": [
+					{
+						"__type": "Slot",
+						"__id": "beta-project-inst-name-slot",
+						"name": "projectName",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "project-name-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "beta-project-inst-name-val",
+								"name": "BetaMigration",
+								"value": "BetaMigration"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "beta-project-inst-budget-slot",
+						"name": "budget",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "project-budget-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "beta-project-inst-budget-val",
+								"name": "n120000",
+								"value": "n120000"
+							}
+						]
+					}
+				]
+			},
+			{
+				"__type": "InstanceSpecification",
+				"__id": "gamma-project-inst",
+				"name": "gammaProject",
+				"visibility": "PUBLIC",
+				"classifier": {
+					"__type": "Reference",
+					"__refType": "InstanceClassifier",
+					"__value": "project-cls"
+				},
+				"slots": [
+					{
+						"__type": "Slot",
+						"__id": "gamma-project-inst-name-slot",
+						"name": "projectName",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "project-name-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "gamma-project-inst-name-val",
+								"name": "GammaResearch",
+								"value": "GammaResearch"
+							}
+						]
+					},
+					{
+						"__type": "Slot",
+						"__id": "gamma-project-inst-budget-slot",
+						"name": "budget",
+						"definingFeature": {
+							"__type": "Reference",
+							"__refType": "SlotDefiningFeature",
+							"__value": "project-budget-prop"
+						},
+						"values": [
+							{
+								"__type": "LiteralSpecification",
+								"__id": "gamma-project-inst-budget-val",
+								"name": "n80000",
+								"value": "n80000"
+							}
+						]
+					}
+				]
 			}
 		],
 		"relations": [
@@ -1503,6 +1724,153 @@
 					"__value": "dave-addr-inst"
 				},
 				"relationType": "INSTANCE_LINK"
+			},
+			{
+				"__type": "Association",
+				"__id": "works-on-assoc",
+				"name": "worksOn",
+				"sourceMultiplicity": "*",
+				"targetMultiplicity": "*",
+				"sourceAggregation": "NONE",
+				"targetAggregation": "NONE",
+				"visibility": "PUBLIC",
+				"source": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "employee-cls"
+				},
+				"target": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "project-cls"
+				},
+				"relationType": "ASSOCIATION"
+			},
+			{
+				"__type": "InstanceLink",
+				"__id": "alice-alpha-link",
+				"name": "worksOn",
+				"association": {
+					"__type": "Reference",
+					"__refType": "Association",
+					"__value": "works-on-assoc"
+				},
+				"source": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "alice-inst"
+				},
+				"target": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "alpha-project-inst"
+				},
+				"relationType": "INSTANCE_LINK"
+			},
+			{
+				"__type": "InstanceLink",
+				"__id": "alice-beta-link",
+				"name": "worksOn",
+				"association": {
+					"__type": "Reference",
+					"__refType": "Association",
+					"__value": "works-on-assoc"
+				},
+				"source": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "alice-inst"
+				},
+				"target": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "beta-project-inst"
+				},
+				"relationType": "INSTANCE_LINK"
+			},
+			{
+				"__type": "InstanceLink",
+				"__id": "bob-alpha-link",
+				"name": "worksOn",
+				"association": {
+					"__type": "Reference",
+					"__refType": "Association",
+					"__value": "works-on-assoc"
+				},
+				"source": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "bob-inst"
+				},
+				"target": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "alpha-project-inst"
+				},
+				"relationType": "INSTANCE_LINK"
+			},
+			{
+				"__type": "InstanceLink",
+				"__id": "charlie-beta-link",
+				"name": "worksOn",
+				"association": {
+					"__type": "Reference",
+					"__refType": "Association",
+					"__value": "works-on-assoc"
+				},
+				"source": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "charlie-inst"
+				},
+				"target": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "beta-project-inst"
+				},
+				"relationType": "INSTANCE_LINK"
+			},
+			{
+				"__type": "InstanceLink",
+				"__id": "charlie-gamma-link",
+				"name": "worksOn",
+				"association": {
+					"__type": "Reference",
+					"__refType": "Association",
+					"__value": "works-on-assoc"
+				},
+				"source": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "charlie-inst"
+				},
+				"target": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "gamma-project-inst"
+				},
+				"relationType": "INSTANCE_LINK"
+			},
+			{
+				"__type": "InstanceLink",
+				"__id": "diana-gamma-link",
+				"name": "worksOn",
+				"association": {
+					"__type": "Reference",
+					"__refType": "Association",
+					"__value": "works-on-assoc"
+				},
+				"source": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "diana-inst"
+				},
+				"target": {
+					"__type": "Reference",
+					"__refType": "Node",
+					"__value": "gamma-project-inst"
+				},
+				"relationType": "INSTANCE_LINK"
 			}
 		]
 	},
@@ -1512,238 +1880,484 @@
 			"__id": "size_person-cls",
 			"height": 100,
 			"width": 220,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "person-cls" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "person-cls"
+			}
 		},
 		{
 			"__type": "Position",
 			"__id": "pos_person-cls",
 			"x": 300,
 			"y": 20,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "person-cls" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "person-cls"
+			}
 		},
 		{
 			"__type": "Size",
 			"__id": "size_employee-cls",
 			"height": 100,
 			"width": 220,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "employee-cls" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "employee-cls"
+			}
 		},
 		{
 			"__type": "Position",
 			"__id": "pos_employee-cls",
 			"x": 80,
 			"y": 200,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "employee-cls" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "employee-cls"
+			}
 		},
 		{
 			"__type": "Size",
 			"__id": "size_manager-cls",
 			"height": 56,
 			"width": 180,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "manager-cls" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "manager-cls"
+			}
 		},
 		{
 			"__type": "Position",
 			"__id": "pos_manager-cls",
 			"x": 80,
 			"y": 380,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "manager-cls" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "manager-cls"
+			}
 		},
 		{
 			"__type": "Size",
 			"__id": "size_customer-cls",
 			"height": 78,
 			"width": 200,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "customer-cls" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "customer-cls"
+			}
 		},
 		{
 			"__type": "Position",
 			"__id": "pos_customer-cls",
 			"x": 560,
 			"y": 200,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "customer-cls" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "customer-cls"
+			}
 		},
 		{
 			"__type": "Size",
 			"__id": "size_address-dt",
 			"height": 100,
 			"width": 180,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "address-dt" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "address-dt"
+			}
 		},
 		{
 			"__type": "Position",
 			"__id": "pos_address-dt",
 			"x": 820,
 			"y": 20,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "address-dt" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "address-dt"
+			}
 		},
 		{
 			"__type": "Size",
 			"__id": "size_company-cls",
 			"height": 78,
 			"width": 200,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "company-cls" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "company-cls"
+			}
 		},
 		{
 			"__type": "Position",
 			"__id": "pos_company-cls",
 			"x": 820,
 			"y": 200,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "company-cls" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "company-cls"
+			}
 		},
 		{
 			"__type": "Size",
 			"__id": "size_alice-inst",
 			"height": 188,
 			"width": 260,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "alice-inst" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "alice-inst"
+			}
 		},
 		{
 			"__type": "Position",
 			"__id": "pos_alice-inst",
 			"x": 50,
 			"y": 500,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "alice-inst" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "alice-inst"
+			}
 		},
 		{
 			"__type": "Size",
 			"__id": "size_bob-inst",
 			"height": 166,
 			"width": 260,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "bob-inst" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "bob-inst"
+			}
 		},
 		{
 			"__type": "Position",
 			"__id": "pos_bob-inst",
 			"x": 340,
 			"y": 500,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "bob-inst" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "bob-inst"
+			}
 		},
 		{
 			"__type": "Size",
 			"__id": "size_charlie-inst",
 			"height": 188,
 			"width": 260,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "charlie-inst" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "charlie-inst"
+			}
 		},
 		{
 			"__type": "Position",
 			"__id": "pos_charlie-inst",
 			"x": 630,
 			"y": 500,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "charlie-inst" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "charlie-inst"
+			}
 		},
 		{
 			"__type": "Size",
 			"__id": "size_diana-inst",
 			"height": 166,
 			"width": 260,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "diana-inst" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "diana-inst"
+			}
 		},
 		{
 			"__type": "Position",
 			"__id": "pos_diana-inst",
 			"x": 920,
 			"y": 500,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "diana-inst" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "diana-inst"
+			}
 		},
 		{
 			"__type": "Size",
 			"__id": "size_carol-inst",
 			"height": 144,
 			"width": 260,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "carol-inst" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "carol-inst"
+			}
 		},
 		{
 			"__type": "Position",
 			"__id": "pos_carol-inst",
 			"x": 50,
 			"y": 740,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "carol-inst" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "carol-inst"
+			}
 		},
 		{
 			"__type": "Size",
 			"__id": "size_dave-inst",
 			"height": 122,
 			"width": 240,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "dave-inst" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "dave-inst"
+			}
 		},
 		{
 			"__type": "Position",
 			"__id": "pos_dave-inst",
 			"x": 340,
 			"y": 740,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "dave-inst" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "dave-inst"
+			}
 		},
 		{
 			"__type": "Size",
 			"__id": "size_acme-inst",
 			"height": 78,
 			"width": 200,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "acme-inst" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "acme-inst"
+			}
 		},
 		{
 			"__type": "Position",
 			"__id": "pos_acme-inst",
 			"x": 630,
 			"y": 740,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "acme-inst" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "acme-inst"
+			}
 		},
 		{
 			"__type": "Size",
 			"__id": "size_techco-inst",
 			"height": 78,
 			"width": 200,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "techco-inst" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "techco-inst"
+			}
 		},
 		{
 			"__type": "Position",
 			"__id": "pos_techco-inst",
 			"x": 860,
 			"y": 740,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "techco-inst" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "techco-inst"
+			}
 		},
 		{
 			"__type": "Size",
 			"__id": "size_alice-addr-inst",
 			"height": 100,
 			"width": 220,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "alice-addr-inst" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "alice-addr-inst"
+			}
 		},
 		{
 			"__type": "Position",
 			"__id": "pos_alice-addr-inst",
 			"x": 50,
 			"y": 920,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "alice-addr-inst" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "alice-addr-inst"
+			}
 		},
 		{
 			"__type": "Size",
 			"__id": "size_carol-addr-inst",
 			"height": 100,
 			"width": 220,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "carol-addr-inst" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "carol-addr-inst"
+			}
 		},
 		{
 			"__type": "Position",
 			"__id": "pos_carol-addr-inst",
 			"x": 300,
 			"y": 920,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "carol-addr-inst" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "carol-addr-inst"
+			}
 		},
 		{
 			"__type": "Size",
 			"__id": "size_dave-addr-inst",
 			"height": 100,
 			"width": 220,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "dave-addr-inst" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "dave-addr-inst"
+			}
 		},
 		{
 			"__type": "Position",
 			"__id": "pos_dave-addr-inst",
 			"x": 550,
 			"y": 920,
-			"element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "dave-addr-inst" }
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "dave-addr-inst"
+			}
+		},
+		{
+			"__type": "Size",
+			"__id": "size_a2393646a-b831-4c51-972b-06d0ef5941ea",
+			"height": 78,
+			"width": 170,
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "a2393646a-b831-4c51-972b-06d0ef5941ea"
+			}
+		},
+		{
+			"__type": "Position",
+			"__id": "pos_a2393646a-b831-4c51-972b-06d0ef5941ea",
+			"x": 1068,
+			"y": 200,
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "a2393646a-b831-4c51-972b-06d0ef5941ea"
+			}
+		},
+		{
+			"__type": "Size",
+			"__id": "size_project-cls",
+			"height": 100,
+			"width": 200,
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "project-cls"
+			}
+		},
+		{
+			"__type": "Position",
+			"__id": "pos_project-cls",
+			"x": 1080,
+			"y": 380,
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "project-cls"
+			}
+		},
+		{
+			"__type": "Size",
+			"__id": "size_alpha-project-inst",
+			"height": 100,
+			"width": 220,
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "alpha-project-inst"
+			}
+		},
+		{
+			"__type": "Position",
+			"__id": "pos_alpha-project-inst",
+			"x": 50,
+			"y": 1100,
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "alpha-project-inst"
+			}
+		},
+		{
+			"__type": "Size",
+			"__id": "size_beta-project-inst",
+			"height": 100,
+			"width": 220,
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "beta-project-inst"
+			}
+		},
+		{
+			"__type": "Position",
+			"__id": "pos_beta-project-inst",
+			"x": 290,
+			"y": 1100,
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "beta-project-inst"
+			}
+		},
+		{
+			"__type": "Size",
+			"__id": "size_gamma-project-inst",
+			"height": 100,
+			"width": 220,
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "gamma-project-inst"
+			}
+		},
+		{
+			"__type": "Position",
+			"__id": "pos_gamma-project-inst",
+			"x": 530,
+			"y": 1100,
+			"element": {
+				"__type": "Reference",
+				"__refType": "ElementWithSizeAndPosition",
+				"__value": "gamma-project-inst"
+			}
 		}
 	]
 }

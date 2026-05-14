@@ -5,3 +5,5 @@ node_modules
 client/lerna-debug.log*
 *.hash
 client/.nx
+/.vs
+/.claude/settings.local.json

@@ -8,32 +8,47 @@
  **********************************************************************************/
 
 import { VSCodeContext } from '@borkdominik-biguml/big-components';
+import { UpdateOperation } from '@borkdominik-biguml/uml-glsp-server';
 import { CenterAction, SelectAction, SelectAllAction } from '@eclipse-glsp/protocol';
 import { useContext, useEffect, useState, type ChangeEvent, type KeyboardEvent, type ReactElement } from 'react';
 import {
     CreateClassifierInstanceOperation,
     InstanceExplorerDataResponse,
+    UpdateInstanceLinkEndOperation,
     UpdateInstanceSlotValuesOperation,
     type ClassifierGroup,
     type ClassifierType,
     type DiagnosticSummary,
+    type EligibleInstance,
+    type InstanceLinkSummary,
     type InstanceSummary,
+    type ManyToManyRelationSection,
     type SlotSummary
 } from '../common/index.js';
 
+type EditTarget = 'slot' | 'instance' | 'classifier';
+
 interface EditState {
-    slotId: string;
+    kind: EditTarget;
+    targetId: string;
     value: string;
+}
+
+interface LinkEditState {
+    linkId: string;
+    end: 'source' | 'target';
 }
 
 export function InstanceExplorer(): ReactElement {
     const { clientId, dispatchAction, listenAction } = useContext(VSCodeContext);
     const [classifierGroups, setClassifierGroups] = useState<ClassifierGroup[]>([]);
     const [unclassified, setUnclassified] = useState<InstanceSummary[]>([]);
+    const [manyToManyRelations, setManyToManyRelations] = useState<ManyToManyRelationSection[]>([]);
     const [searchText, setSearchText] = useState('');
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
     const [expandedInstances, setExpandedInstances] = useState<Record<string, boolean>>({});
     const [editState, setEditState] = useState<EditState | undefined>();
+    const [linkEditState, setLinkEditState] = useState<LinkEditState | undefined>();
 
     useEffect(() => {
         listenAction(action => {
@@ -43,6 +58,7 @@ export function InstanceExplorer(): ReactElement {
 
             setClassifierGroups(action.classifierGroups);
             setUnclassified(action.unclassified);
+            setManyToManyRelations(action.manyToManyRelations ?? []);
         });
     }, [listenAction]);
 
@@ -52,6 +68,11 @@ export function InstanceExplorer(): ReactElement {
             for (const group of classifierGroups) {
                 if (next[group.classifierId] === undefined) {
                     next[group.classifierId] = true;
+                }
+            }
+            for (const section of manyToManyRelations) {
+                if (next[section.id] === undefined) {
+                    next[section.id] = true;
                 }
             }
             if (unclassified.length > 0 && next.unclassified === undefined) {
@@ -69,7 +90,7 @@ export function InstanceExplorer(): ReactElement {
             }
             return next;
         });
-    }, [classifierGroups, unclassified]);
+    }, [classifierGroups, unclassified, manyToManyRelations]);
 
     const query = searchText.trim().toLowerCase();
     const filteredGroups = filterGroups(classifierGroups, query);
@@ -94,18 +115,68 @@ export function InstanceExplorer(): ReactElement {
         dispatchAction(CreateClassifierInstanceOperation.create({ classifierId }));
     };
 
+    const commitLinkEdit = (linkId: string, end: 'source' | 'target', newInstanceId: string) => {
+        if (clientId && newInstanceId) {
+            dispatchAction(UpdateInstanceLinkEndOperation.create({ linkId, end, newInstanceId }));
+        }
+        setLinkEditState(undefined);
+    };
+
+    const renderLinkPicker = (linkId: string, end: 'source' | 'target', eligible: EligibleInstance[], currentId: string) => {
+        const options = eligible.some(candidate => candidate.id === currentId)
+            ? eligible
+            : [{ id: currentId, name: currentId, classifierName: undefined } as EligibleInstance, ...eligible];
+
+        return (
+            <select
+                autoFocus
+                className='instance-explorer__input instance-explorer__slot-input'
+                defaultValue={currentId}
+                onBlur={() => setLinkEditState(undefined)}
+                onChange={event => {
+                    const nextId = event.target.value;
+                    if (nextId && nextId !== currentId) {
+                        commitLinkEdit(linkId, end, nextId);
+                    } else {
+                        setLinkEditState(undefined);
+                    }
+                }}
+                onClick={event => event.stopPropagation()}
+                onDoubleClick={event => event.stopPropagation()}
+                onKeyDown={(event: KeyboardEvent<HTMLSelectElement>) => {
+                    if (event.key === 'Escape') {
+                        setLinkEditState(undefined);
+                    }
+                }}
+            >
+                {options.map(candidate => (
+                    <option key={candidate.id} value={candidate.id}>
+                        {candidate.classifierName ? `${candidate.name} : ${candidate.classifierName}` : candidate.name}
+                    </option>
+                ))}
+            </select>
+        );
+    };
+
     const commitEdit = (current: EditState | undefined) => {
         if (!current) {
             return;
         }
 
         if (clientId) {
+            if (current.kind === 'slot') {
             dispatchAction(
                 UpdateInstanceSlotValuesOperation.create({
-                    slotId: current.slotId,
+                        slotId: current.targetId,
                     values: parseValues(current.value)
                 })
             );
+            } else {
+                const trimmed = current.value.trim();
+                if (trimmed.length > 0) {
+                    dispatchAction(UpdateOperation.create(current.targetId, 'name', trimmed));
+        }
+            }
         }
 
         setEditState(undefined);
@@ -125,13 +196,13 @@ export function InstanceExplorer(): ReactElement {
     };
 
     const renderSlot = (slot: SlotSummary) => {
-        const isEditing = editState?.slotId === slot.id;
+        const isEditing = editState?.kind === 'slot' && editState.targetId === slot.id;
 
         return (
             <div
                 key={slot.id}
                 className='instance-explorer__slot'
-                onDoubleClick={() => setEditState({ slotId: slot.id, value: formatValues(slot.values) })}
+                onDoubleClick={() => setEditState({ kind: 'slot', targetId: slot.id, value: formatValues(slot.values) })}
             >
                 <span className='instance-explorer__slot-feature'>{slot.featureName || '(unnamed slot)'}</span>
                 <span className='instance-explorer__slot-equals'>=</span>
@@ -164,7 +235,7 @@ export function InstanceExplorer(): ReactElement {
 
     const renderInstance = (instance: InstanceSummary) => {
         const expanded = expandedInstances[instance.id];
-        const label = instance.classifierName ? `${instance.name} : ${instance.classifierName}` : instance.name;
+        const isRenaming = editState?.kind === 'instance' && editState.targetId === instance.id;
 
         return (
             <div key={instance.id} className='instance-explorer__instance'>
@@ -182,16 +253,90 @@ export function InstanceExplorer(): ReactElement {
                         }}
                     />
                     <span className='codicon codicon-symbol-field instance-explorer__icon' />
-                    <span className='instance-explorer__label'>{label}</span>
+                    <span className='instance-explorer__label'>
+                        {isRenaming ? (
+                            <input
+                                autoFocus
+                                className='instance-explorer__input instance-explorer__slot-input'
+                                value={editState?.value ?? ''}
+                                onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                                    setEditState(current => (current ? { ...current, value: event.target.value } : current))
+                                }
+                                onBlur={() => commitEdit(editState)}
+                                onClick={event => event.stopPropagation()}
+                                onDoubleClick={event => event.stopPropagation()}
+                                onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
+                                    if (event.key === 'Enter') {
+                                        commitEdit(editState);
+                                    } else if (event.key === 'Escape') {
+                                        setEditState(undefined);
+                                    }
+                                }}
+                            />
+                        ) : (
+                            <span
+                                onDoubleClick={event => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    setEditState({ kind: 'instance', targetId: instance.id, value: instance.name });
+                                }}
+                            >
+                                {instance.name}
+                            </span>
+                        )}
+                        {instance.classifierName ? <span>{` : ${instance.classifierName}`}</span> : null}
+                    </span>
                     {renderDiagnostics(instance.diagnostics)}
                 </button>
-                {expanded && instance.slots.length > 0 ? <div className='instance-explorer__slots'>{instance.slots.map(renderSlot)}</div> : null}
+                {expanded && (instance.slots.length > 0 || instance.links.length > 0) ? (
+                    <div className='instance-explorer__slots'>
+                        {instance.slots.map(renderSlot)}
+                        {instance.links.map(renderLink)}
+                    </div>
+                ) : null}
+            </div>
+        );
+    };
+
+    const renderLink = (link: InstanceLinkSummary) => {
+        const arrow = link.direction === 'outgoing' ? '→' : '←';
+        const peerLabel = link.peerClassifierName ? `${link.peerInstanceName} : ${link.peerClassifierName}` : link.peerInstanceName;
+        const isEditingPeer = linkEditState?.linkId === link.id && linkEditState.end === link.peerEnd;
+        return (
+            <div key={link.id} className='instance-explorer__slot instance-explorer__link'>
+                <span className='instance-explorer__slot-feature'>{link.relationName}</span>
+                <span className='instance-explorer__slot-equals'>{arrow}</span>
+                {isEditingPeer ? (
+                    renderLinkPicker(link.id, link.peerEnd, link.eligiblePeers, link.peerInstanceId)
+                ) : (
+                    <button
+                        className='instance-explorer__link-peer'
+                        onClick={event => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            navigateTo(link.peerInstanceId);
+                        }}
+                        onDoubleClick={event => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            if (link.eligiblePeers.length > 0) {
+                                setLinkEditState({ linkId: link.id, end: link.peerEnd });
+                            }
+                        }}
+                        title='Double-click to change to another eligible instance'
+                        type='button'
+                    >
+                        {peerLabel}
+                    </button>
+                )}
+                <span />
             </div>
         );
     };
 
     const renderGroup = (group: ClassifierGroup) => {
         const expanded = expandedGroups[group.classifierId];
+        const isRenaming = editState?.kind === 'classifier' && editState.targetId === group.classifierId;
 
         return (
             <section key={group.classifierId} className='instance-explorer__group'>
@@ -203,6 +348,26 @@ export function InstanceExplorer(): ReactElement {
                     >
                         <span className={`codicon ${expanded ? 'codicon-chevron-down' : 'codicon-chevron-right'} instance-explorer__disclosure`} />
                         <span className={`codicon ${classifierIcon(group.classifierType)} instance-explorer__icon`} />
+                        {isRenaming ? (
+                            <input
+                                autoFocus
+                                className='instance-explorer__input instance-explorer__slot-input'
+                                value={editState?.value ?? ''}
+                                onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                                    setEditState(current => (current ? { ...current, value: event.target.value } : current))
+                                }
+                                onBlur={() => commitEdit(editState)}
+                                onClick={event => event.stopPropagation()}
+                                onDoubleClick={event => event.stopPropagation()}
+                                onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
+                                    if (event.key === 'Enter') {
+                                        commitEdit(editState);
+                                    } else if (event.key === 'Escape') {
+                                        setEditState(undefined);
+                                    }
+                                }}
+                            />
+                        ) : (
                         <span
                             className='instance-explorer__label'
                             onClick={event => {
@@ -210,9 +375,15 @@ export function InstanceExplorer(): ReactElement {
                                 event.stopPropagation();
                                 navigateTo(group.classifierId);
                             }}
+                                onDoubleClick={event => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    setEditState({ kind: 'classifier', targetId: group.classifierId, value: group.classifierName });
+                                }}
                         >
                             {group.classifierName}
                         </span>
+                        )}
                     </button>
                     <span className='instance-explorer__count'>{group.instances.length}</span>
                     <button
@@ -229,7 +400,92 @@ export function InstanceExplorer(): ReactElement {
         );
     };
 
-    const showEmptyState = filteredGroups.length === 0 && filteredUnclassified.length === 0;
+    const renderManyToManyRelation = (section: ManyToManyRelationSection) => {
+        const expanded = expandedGroups[section.id];
+        return (
+            <section key={section.id} className='instance-explorer__group'>
+                <div className='instance-explorer__row instance-explorer__row--group'>
+                    <button
+                        className='instance-explorer__row-main'
+                        onClick={() => setExpandedGroups(current => ({ ...current, [section.id]: !current[section.id] }))}
+                        type='button'
+                    >
+                        <span className={`codicon ${expanded ? 'codicon-chevron-down' : 'codicon-chevron-right'} instance-explorer__disclosure`} />
+                        <span className='codicon codicon-references instance-explorer__icon' />
+                        <span className='instance-explorer__label'>{`${section.name} : ${section.relationType}`}</span>
+                    </button>
+                    <span className='instance-explorer__count'>{section.links.length}</span>
+                </div>
+                {expanded ? (
+                    <div className='instance-explorer__children'>
+                        {section.links.map(link => {
+                            const isEditingSource = linkEditState?.linkId === link.id && linkEditState.end === 'source';
+                            const isEditingTarget = linkEditState?.linkId === link.id && linkEditState.end === 'target';
+                            return (
+                                <div key={link.id} className='instance-explorer__row instance-explorer__row--m2m'>
+                                    <span className='codicon codicon-symbol-field instance-explorer__icon' />
+                                    {isEditingSource ? (
+                                        renderLinkPicker(link.id, 'source', link.eligibleSources, link.sourceInstanceId)
+                                    ) : (
+                                        <button
+                                            className='instance-explorer__link-peer'
+                                            onClick={event => {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+                                                navigateTo(link.sourceInstanceId);
+                                            }}
+                                            onDoubleClick={event => {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+                                                if (link.eligibleSources.length > 0) {
+                                                    setLinkEditState({ linkId: link.id, end: 'source' });
+                                                }
+                                            }}
+                                            title='Double-click to change to another eligible instance'
+                                            type='button'
+                                        >
+                                            {link.sourceClassifierName
+                                                ? `${link.sourceInstanceName} : ${link.sourceClassifierName}`
+                                                : link.sourceInstanceName}
+                                        </button>
+                                    )}
+                                    <span className='instance-explorer__slot-equals'>→</span>
+                                    {isEditingTarget ? (
+                                        renderLinkPicker(link.id, 'target', link.eligibleTargets, link.targetInstanceId)
+                                    ) : (
+                                        <button
+                                            className='instance-explorer__link-peer'
+                                            onClick={event => {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+                                                navigateTo(link.targetInstanceId);
+                                            }}
+                                            onDoubleClick={event => {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+                                                if (link.eligibleTargets.length > 0) {
+                                                    setLinkEditState({ linkId: link.id, end: 'target' });
+                                                }
+                                            }}
+                                            title='Double-click to change to another eligible instance'
+                                            type='button'
+                                        >
+                                            {link.targetClassifierName
+                                                ? `${link.targetInstanceName} : ${link.targetClassifierName}`
+                                                : link.targetInstanceName}
+                                        </button>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                ) : null}
+            </section>
+        );
+    };
+
+    const filteredManyToMany = filterManyToMany(manyToManyRelations, query);
+    const showEmptyState = filteredGroups.length === 0 && filteredUnclassified.length === 0 && filteredManyToMany.length === 0;
 
     return (
         <div className='instance-explorer'>
@@ -271,6 +527,8 @@ export function InstanceExplorer(): ReactElement {
                         ) : null}
                     </section>
                 ) : null}
+
+                {filteredManyToMany.map(renderManyToManyRelation)}
 
                 {showEmptyState ? (
                     <div className='instance-explorer__empty'>No matching instances were found in the active diagram.</div>
@@ -326,6 +584,17 @@ function filterInstances(instances: InstanceSummary[], query: string): InstanceS
             return true;
         }
 
+        if (
+            instance.links.some(
+                link =>
+                    link.relationName.toLowerCase().includes(query) ||
+                    link.peerInstanceName.toLowerCase().includes(query) ||
+                    (link.peerClassifierName?.toLowerCase().includes(query) ?? false)
+            )
+        ) {
+            return true;
+        }
+
         return instance.slots.some(slot => {
             if (slot.featureName.toLowerCase().includes(query)) {
                 return true;
@@ -338,6 +607,31 @@ function filterInstances(instances: InstanceSummary[], query: string): InstanceS
             return slot.diagnostics.some(diagnostic => diagnostic.message.toLowerCase().includes(query));
         });
     });
+}
+
+function filterManyToMany(sections: ManyToManyRelationSection[], query: string): ManyToManyRelationSection[] {
+    if (!query) {
+        return sections;
+    }
+
+    const filtered: ManyToManyRelationSection[] = [];
+    for (const section of sections) {
+        if (section.name.toLowerCase().includes(query) || section.relationType.toLowerCase().includes(query)) {
+            filtered.push(section);
+            continue;
+        }
+        const links = section.links.filter(
+            link =>
+                link.sourceInstanceName.toLowerCase().includes(query) ||
+                link.targetInstanceName.toLowerCase().includes(query) ||
+                (link.sourceClassifierName?.toLowerCase().includes(query) ?? false) ||
+                (link.targetClassifierName?.toLowerCase().includes(query) ?? false)
+        );
+        if (links.length > 0) {
+            filtered.push({ ...section, links });
+        }
+    }
+    return filtered;
 }
 
 function parseValues(value: string): string[] {
