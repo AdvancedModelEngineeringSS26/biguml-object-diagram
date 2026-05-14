@@ -1,0 +1,6 @@
+type,name,property,value
+<% it.instances.forEach(function(inst){ %>
+    <% (inst.slots||[]).forEach(function(slot){ %>
+<%= (inst.classifierName||'') %>,"<%= inst.name %>","<%= slot.featureName %>","<%= slot.value %>"
+    <% }) %>
+<% }) %>

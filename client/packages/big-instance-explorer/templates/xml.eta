@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<diagram name="<%= it.diagramName %>">
+    <timestamp><%= it.timestamp %></timestamp>
+    <instances>
+    <% it.instances.forEach(function(inst){ %>
+        <instance type="<%= inst.classifierName %>" name="<%= inst.name %>">
+            <properties>
+            <% (inst.slots||[]).forEach(function(slot){ %>
+                <property name="<%= slot.featureName %>"><%= slot.value %></property>
+            <% }) %>
+            </properties>
+        </instance>
+    <% }) %>
+    </instances>
+    <links>
+    <% (it.links||[]).forEach(function(link){ %>
+        <link id="<%= link.id %>" relation="<%= link.relationName %>" source="<%= link.sourceInstanceId %>" target="<%= link.targetInstanceId %>" />
+    <% }) %>
+    </links>
+</diagram>
