@@ -100,6 +100,12 @@
         "icon": "$(symbol-reference)"
       },
       {
+        "command": "bigUML.exportInstances",
+        "title": "Export Instances...",
+        "category": "bigUML",
+        "enablement": "activeCustomEditorId == 'bigUML.diagramView'"
+      },
+      {
         "command": "timeline.import",
         "title": "Import Timeline",
         "icon": "$(cloud-upload)"
