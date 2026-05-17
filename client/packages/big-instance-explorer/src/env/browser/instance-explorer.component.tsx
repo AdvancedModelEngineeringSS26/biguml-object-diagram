@@ -9,7 +9,7 @@
 
 import { VSCodeContext } from '@borkdominik-biguml/big-components';
 import { UpdateOperation } from '@borkdominik-biguml/uml-glsp-server';
-import { CenterAction, SelectAction, SelectAllAction } from '@eclipse-glsp/protocol';
+import { CenterAction, DeleteElementOperation, SelectAction, SelectAllAction } from '@eclipse-glsp/protocol';
 import { useContext, useEffect, useState, type ChangeEvent, type KeyboardEvent, type ReactElement } from 'react';
 import {
     CreateClassifierInstanceOperation,
@@ -65,6 +65,7 @@ export function InstanceExplorer(): ReactElement {
     const [editState, setEditState] = useState<EditState | undefined>();
     const [linkEditState, setLinkEditState] = useState<LinkEditState | undefined>();
     const [createLinkState, setCreateLinkState] = useState<CreateLinkState | undefined>();
+    const [selectedInstanceId, setSelectedInstanceId] = useState<string | undefined>();
 
     useEffect(() => {
         listenAction(action => {
@@ -125,6 +126,16 @@ export function InstanceExplorer(): ReactElement {
         }
     }, [createLinkState, availableForInstantiation, manyToManyRelations]);
 
+    useEffect(() => {
+        if (!selectedInstanceId) {
+            return;
+        }
+        const stillExists = flattenInstances(classifierGroups, unclassified).some(instance => instance.id === selectedInstanceId);
+        if (!stillExists) {
+            setSelectedInstanceId(undefined);
+        }
+    }, [selectedInstanceId, classifierGroups, unclassified]);
+
     const query = searchText.trim().toLowerCase();
     const filteredGroups = filterGroups(classifierGroups, query);
     const filteredUnclassified = filterInstances(unclassified, query);
@@ -138,6 +149,35 @@ export function InstanceExplorer(): ReactElement {
         dispatchAction(SelectAllAction.create(false));
         dispatchAction(SelectAction.create({ selectedElementsIDs: [elementId] }));
         dispatchAction(CenterAction.create([elementId]));
+    };
+
+    const selectInstance = (instanceId: string) => {
+        setSelectedInstanceId(instanceId);
+        navigateTo(instanceId);
+    };
+
+    const handleRootKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+        if (event.key === 'Escape' && selectedInstanceId) {
+            setSelectedInstanceId(undefined);
+            return;
+        }
+        if (event.key !== 'Delete') {
+            return;
+        }
+        // Don't intercept Delete while the user is editing a text field, dropdown, etc.
+        const target = event.target as HTMLElement | null;
+        if (target) {
+            const tag = target.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) {
+                return;
+            }
+        }
+        if (!selectedInstanceId || !clientId) {
+            return;
+        }
+        event.preventDefault();
+        dispatchAction(DeleteElementOperation.create([selectedInstanceId]));
+        setSelectedInstanceId(undefined);
     };
 
     const createInstance = (classifierId: string) => {
@@ -363,11 +403,14 @@ export function InstanceExplorer(): ReactElement {
         const expanded = expandedInstances[instance.id];
         const isRenaming = editState?.kind === 'instance' && editState.targetId === instance.id;
 
+        const isSelected = selectedInstanceId === instance.id;
         return (
             <div key={instance.id} className='instance-explorer__instance'>
                 <button
-                    className='instance-explorer__row instance-explorer__row--instance'
-                    onClick={() => navigateTo(instance.id)}
+                    className={`instance-explorer__row instance-explorer__row--instance${
+                        isSelected ? ' instance-explorer__row--selected' : ''
+                    }`}
+                    onClick={() => selectInstance(instance.id)}
                     type='button'
                 >
                     <span
@@ -705,7 +748,7 @@ export function InstanceExplorer(): ReactElement {
         filteredGroups.length === 0 && filteredUnclassified.length === 0 && filteredManyToMany.length === 0 && !hasAvailable;
 
     return (
-        <div className='instance-explorer'>
+        <div className='instance-explorer' onKeyDown={handleRootKeyDown}>
             <header className='instance-explorer__header'>
                 <div className='instance-explorer__subtitle'>{totalInstances} instance(s) in the current diagram</div>
                 <input
