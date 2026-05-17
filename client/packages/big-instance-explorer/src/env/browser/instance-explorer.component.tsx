@@ -19,6 +19,7 @@ import {
     UpdateInstanceSlotValuesOperation,
     type AvailableAssociation,
     type AvailableForInstantiation,
+    type AvailableInstanceLink,
     type ClassifierGroup,
     type ClassifierType,
     type DiagnosticSummary,
@@ -46,6 +47,10 @@ interface CreateLinkState {
     associationId: string;
     sourceId: string;
     targetId: string;
+    /** When set, the named end is locked (its dropdown is hidden); used for instance-anchored creation. */
+    fixed?: 'source' | 'target';
+    /** When set, the picker is rendered under this instance row only. */
+    anchorInstanceId?: string;
 }
 
 const AVAILABLE_SECTION_KEY = '__available_to_instantiate__';
@@ -119,12 +124,25 @@ export function InstanceExplorer(): ReactElement {
         if (!createLinkState) {
             return;
         }
+        // Instance-anchored creates live on a specific instance's availableLinks list.
+        if (createLinkState.anchorInstanceId) {
+            const anchor = flattenInstances(classifierGroups, unclassified).find(
+                instance => instance.id === createLinkState.anchorInstanceId
+            );
+            const stillAvailable = anchor?.availableLinks.some(
+                a => a.associationId === createLinkState.associationId && a.end === createLinkState.fixed
+            );
+            if (!stillAvailable) {
+                setCreateLinkState(undefined);
+            }
+            return;
+        }
         const stillAvailable = availableForInstantiation.associations.some(a => a.associationId === createLinkState.associationId);
         const stillM2m = manyToManyRelations.some(section => section.id === createLinkState.associationId);
         if (!stillAvailable && !stillM2m) {
             setCreateLinkState(undefined);
         }
-    }, [createLinkState, availableForInstantiation, manyToManyRelations]);
+    }, [createLinkState, availableForInstantiation, manyToManyRelations, classifierGroups, unclassified]);
 
     useEffect(() => {
         if (!selectedInstanceId) {
@@ -206,6 +224,20 @@ export function InstanceExplorer(): ReactElement {
         });
     };
 
+    const beginCreateLinkFromInstance = (instanceId: string, available: AvailableInstanceLink) => {
+        if (available.eligiblePeers.length === 0) {
+            return;
+        }
+        const peerId = available.eligiblePeers[0].id;
+        setCreateLinkState({
+            associationId: available.associationId,
+            sourceId: available.end === 'source' ? instanceId : peerId,
+            targetId: available.end === 'target' ? instanceId : peerId,
+            fixed: available.end,
+            anchorInstanceId: instanceId
+        });
+    };
+
     const submitCreateLink = () => {
         if (!clientId || !createLinkState) {
             return;
@@ -230,38 +262,45 @@ export function InstanceExplorer(): ReactElement {
         }
         const optionLabel = (candidate: EligibleInstance) =>
             candidate.classifierName ? `${candidate.name} : ${candidate.classifierName}` : candidate.name;
+        const showSource = createLinkState.fixed !== 'source';
+        const showTarget = createLinkState.fixed !== 'target';
         return (
             <div className='instance-explorer__create-link'>
-                <select
-                    autoFocus
-                    className='instance-explorer__input instance-explorer__slot-input'
-                    value={createLinkState.sourceId}
-                    onChange={event =>
-                        setCreateLinkState(current => (current ? { ...current, sourceId: event.target.value } : current))
-                    }
-                    onClick={event => event.stopPropagation()}
-                >
-                    {eligibleSources.map(candidate => (
-                        <option key={candidate.id} value={candidate.id}>
-                            {optionLabel(candidate)}
-                        </option>
-                    ))}
-                </select>
-                <span className='instance-explorer__slot-equals'>→</span>
-                <select
-                    className='instance-explorer__input instance-explorer__slot-input'
-                    value={createLinkState.targetId}
-                    onChange={event =>
-                        setCreateLinkState(current => (current ? { ...current, targetId: event.target.value } : current))
-                    }
-                    onClick={event => event.stopPropagation()}
-                >
-                    {eligibleTargets.map(candidate => (
-                        <option key={candidate.id} value={candidate.id}>
-                            {optionLabel(candidate)}
-                        </option>
-                    ))}
-                </select>
+                {showSource ? (
+                    <select
+                        autoFocus
+                        className='instance-explorer__input instance-explorer__slot-input'
+                        value={createLinkState.sourceId}
+                        onChange={event =>
+                            setCreateLinkState(current => (current ? { ...current, sourceId: event.target.value } : current))
+                        }
+                        onClick={event => event.stopPropagation()}
+                    >
+                        {eligibleSources.map(candidate => (
+                            <option key={candidate.id} value={candidate.id}>
+                                {optionLabel(candidate)}
+                            </option>
+                        ))}
+                    </select>
+                ) : null}
+                {showSource && showTarget ? <span className='instance-explorer__slot-equals'>→</span> : null}
+                {showTarget ? (
+                    <select
+                        autoFocus={!showSource}
+                        className='instance-explorer__input instance-explorer__slot-input'
+                        value={createLinkState.targetId}
+                        onChange={event =>
+                            setCreateLinkState(current => (current ? { ...current, targetId: event.target.value } : current))
+                        }
+                        onClick={event => event.stopPropagation()}
+                    >
+                        {eligibleTargets.map(candidate => (
+                            <option key={candidate.id} value={candidate.id}>
+                                {optionLabel(candidate)}
+                            </option>
+                        ))}
+                    </select>
+                ) : null}
                 <button
                     className='instance-explorer__create-link-confirm'
                     onClick={event => {
@@ -463,6 +502,42 @@ export function InstanceExplorer(): ReactElement {
                         {instance.links.map(renderLink)}
                     </div>
                 ) : null}
+                {expanded && instance.availableLinks.length > 0 ? (
+                    <div className='instance-explorer__add-links'>
+                        {instance.availableLinks.map(available => renderAvailableInstanceLink(instance.id, available))}
+                    </div>
+                ) : null}
+            </div>
+        );
+    };
+
+    const renderAvailableInstanceLink = (instanceId: string, available: AvailableInstanceLink) => {
+        const isCreatingHere =
+            createLinkState?.associationId === available.associationId &&
+            createLinkState.anchorInstanceId === instanceId &&
+            createLinkState.fixed === available.end;
+        const arrow = available.direction === 'outgoing' ? '→' : '←';
+        const eligibleSources = available.end === 'target' ? available.eligiblePeers : [];
+        const eligibleTargets = available.end === 'source' ? available.eligiblePeers : [];
+        return (
+            <div key={`${available.associationId}-${available.end}`} className='instance-explorer__add-link'>
+                <button
+                    className='instance-explorer__add-link-trigger'
+                    disabled={isCreatingHere}
+                    onClick={event => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        beginCreateLinkFromInstance(instanceId, available);
+                    }}
+                    title={`Add ${available.associationName} link`}
+                    type='button'
+                >
+                    <span className='codicon codicon-add' />
+                    <span className='instance-explorer__slot-feature'>{available.associationName}</span>
+                    <span className='instance-explorer__slot-equals'>{arrow}</span>
+                    <span className='instance-explorer__add-link-hint'>add link…</span>
+                </button>
+                {isCreatingHere ? renderCreateLinkPicker(eligibleSources, eligibleTargets) : null}
             </div>
         );
     };

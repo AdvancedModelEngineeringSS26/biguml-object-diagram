@@ -41,6 +41,14 @@ export interface InstanceLinkSummary {
     eligiblePeers: EligibleInstance[];
 }
 
+export interface AvailableInstanceLink {
+    associationId: string;
+    associationName: string;
+    end: 'source' | 'target';
+    direction: 'outgoing' | 'incoming';
+    eligiblePeers: EligibleInstance[];
+}
+
 export interface InstanceSummary {
     id: string;
     name: string;
@@ -48,6 +56,7 @@ export interface InstanceSummary {
     classifierName?: string;
     slots: SlotSummary[];
     links: InstanceLinkSummary[];
+    availableLinks: AvailableInstanceLink[];
     diagnostics: DiagnosticSummary[];
 }
 

@@ -232,6 +232,52 @@ input {
     flex-direction: column;
 }
 
+.instance-explorer__add-links {
+    display: flex;
+    flex-direction: column;
+    padding: 0 10px 8px 28px;
+    gap: 2px;
+}
+
+.instance-explorer__add-link {
+    display: flex;
+    flex-direction: column;
+}
+
+.instance-explorer__add-link-trigger {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--vscode-descriptionForeground);
+    padding: 4px 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: left;
+}
+
+.instance-explorer__add-link-trigger:hover:not(:disabled) {
+    background: var(--vscode-list-hoverBackground);
+    color: var(--vscode-foreground);
+}
+
+.instance-explorer__add-link-trigger:disabled {
+    cursor: default;
+    opacity: 0.8;
+}
+
+.instance-explorer__add-link-hint {
+    flex: 1 1 auto;
+    color: var(--vscode-descriptionForeground);
+    font-style: italic;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .instance-explorer__create-link {
     display: flex;
     flex-wrap: wrap;
