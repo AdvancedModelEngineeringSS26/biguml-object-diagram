@@ -9,13 +9,17 @@
 
 import { VSCodeContext } from '@borkdominik-biguml/big-components';
 import { UpdateOperation } from '@borkdominik-biguml/uml-glsp-server';
-import { CenterAction, SelectAction, SelectAllAction } from '@eclipse-glsp/protocol';
+import { CenterAction, DeleteElementOperation, SelectAction, SelectAllAction } from '@eclipse-glsp/protocol';
 import { useContext, useEffect, useState, type ChangeEvent, type KeyboardEvent, type ReactElement } from 'react';
 import {
     CreateClassifierInstanceOperation,
+    CreateInstanceLinkOperation,
     InstanceExplorerDataResponse,
     UpdateInstanceLinkEndOperation,
     UpdateInstanceSlotValuesOperation,
+    type AvailableAssociation,
+    type AvailableForInstantiation,
+    type AvailableInstanceLink,
     type ClassifierGroup,
     type ClassifierType,
     type DiagnosticSummary,
@@ -39,16 +43,34 @@ interface LinkEditState {
     end: 'source' | 'target';
 }
 
+interface CreateLinkState {
+    associationId: string;
+    sourceId: string;
+    targetId: string;
+    /** When set, the named end is locked (its dropdown is hidden); used for instance-anchored creation. */
+    fixed?: 'source' | 'target';
+    /** When set, the picker is rendered under this instance row only. */
+    anchorInstanceId?: string;
+}
+
+const AVAILABLE_SECTION_KEY = '__available_to_instantiate__';
+
 export function InstanceExplorer(): ReactElement {
     const { clientId, dispatchAction, listenAction } = useContext(VSCodeContext);
     const [classifierGroups, setClassifierGroups] = useState<ClassifierGroup[]>([]);
     const [unclassified, setUnclassified] = useState<InstanceSummary[]>([]);
     const [manyToManyRelations, setManyToManyRelations] = useState<ManyToManyRelationSection[]>([]);
+    const [availableForInstantiation, setAvailableForInstantiation] = useState<AvailableForInstantiation>({
+        classifiers: [],
+        associations: []
+    });
     const [searchText, setSearchText] = useState('');
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
     const [expandedInstances, setExpandedInstances] = useState<Record<string, boolean>>({});
     const [editState, setEditState] = useState<EditState | undefined>();
     const [linkEditState, setLinkEditState] = useState<LinkEditState | undefined>();
+    const [createLinkState, setCreateLinkState] = useState<CreateLinkState | undefined>();
+    const [selectedInstanceId, setSelectedInstanceId] = useState<string | undefined>();
 
     useEffect(() => {
         listenAction(action => {
@@ -59,6 +81,7 @@ export function InstanceExplorer(): ReactElement {
             setClassifierGroups(action.classifierGroups);
             setUnclassified(action.unclassified);
             setManyToManyRelations(action.manyToManyRelations ?? []);
+            setAvailableForInstantiation(action.availableForInstantiation ?? { classifiers: [], associations: [] });
         });
     }, [listenAction]);
 
@@ -78,6 +101,11 @@ export function InstanceExplorer(): ReactElement {
             if (unclassified.length > 0 && next.unclassified === undefined) {
                 next.unclassified = true;
             }
+            const hasAvailable =
+                availableForInstantiation.classifiers.length > 0 || availableForInstantiation.associations.length > 0;
+            if (hasAvailable && next[AVAILABLE_SECTION_KEY] === undefined) {
+                next[AVAILABLE_SECTION_KEY] = true;
+            }
             return next;
         });
 
@@ -90,7 +118,41 @@ export function InstanceExplorer(): ReactElement {
             }
             return next;
         });
-    }, [classifierGroups, unclassified, manyToManyRelations]);
+    }, [classifierGroups, unclassified, manyToManyRelations, availableForInstantiation]);
+
+    useEffect(() => {
+        if (!createLinkState) {
+            return;
+        }
+        // Instance-anchored creates live on a specific instance's availableLinks list.
+        if (createLinkState.anchorInstanceId) {
+            const anchor = flattenInstances(classifierGroups, unclassified).find(
+                instance => instance.id === createLinkState.anchorInstanceId
+            );
+            const stillAvailable = anchor?.availableLinks.some(
+                a => a.associationId === createLinkState.associationId && a.end === createLinkState.fixed
+            );
+            if (!stillAvailable) {
+                setCreateLinkState(undefined);
+            }
+            return;
+        }
+        const stillAvailable = availableForInstantiation.associations.some(a => a.associationId === createLinkState.associationId);
+        const stillM2m = manyToManyRelations.some(section => section.id === createLinkState.associationId);
+        if (!stillAvailable && !stillM2m) {
+            setCreateLinkState(undefined);
+        }
+    }, [createLinkState, availableForInstantiation, manyToManyRelations, classifierGroups, unclassified]);
+
+    useEffect(() => {
+        if (!selectedInstanceId) {
+            return;
+        }
+        const stillExists = flattenInstances(classifierGroups, unclassified).some(instance => instance.id === selectedInstanceId);
+        if (!stillExists) {
+            setSelectedInstanceId(undefined);
+        }
+    }, [selectedInstanceId, classifierGroups, unclassified]);
 
     const query = searchText.trim().toLowerCase();
     const filteredGroups = filterGroups(classifierGroups, query);
@@ -107,6 +169,35 @@ export function InstanceExplorer(): ReactElement {
         dispatchAction(CenterAction.create([elementId]));
     };
 
+    const selectInstance = (instanceId: string) => {
+        setSelectedInstanceId(instanceId);
+        navigateTo(instanceId);
+    };
+
+    const handleRootKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+        if (event.key === 'Escape' && selectedInstanceId) {
+            setSelectedInstanceId(undefined);
+            return;
+        }
+        if (event.key !== 'Delete') {
+            return;
+        }
+        // Don't intercept Delete while the user is editing a text field, dropdown, etc.
+        const target = event.target as HTMLElement | null;
+        if (target) {
+            const tag = target.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) {
+                return;
+            }
+        }
+        if (!selectedInstanceId || !clientId) {
+            return;
+        }
+        event.preventDefault();
+        dispatchAction(DeleteElementOperation.create([selectedInstanceId]));
+        setSelectedInstanceId(undefined);
+    };
+
     const createInstance = (classifierId: string) => {
         if (!clientId) {
             return;
@@ -120,6 +211,120 @@ export function InstanceExplorer(): ReactElement {
             dispatchAction(UpdateInstanceLinkEndOperation.create({ linkId, end, newInstanceId }));
         }
         setLinkEditState(undefined);
+    };
+
+    const beginCreateLink = (associationId: string, eligibleSources: EligibleInstance[], eligibleTargets: EligibleInstance[]) => {
+        if (eligibleSources.length === 0 || eligibleTargets.length === 0) {
+            return;
+        }
+        setCreateLinkState({
+            associationId,
+            sourceId: eligibleSources[0].id,
+            targetId: eligibleTargets[0].id
+        });
+    };
+
+    const beginCreateLinkFromInstance = (instanceId: string, available: AvailableInstanceLink) => {
+        if (available.eligiblePeers.length === 0) {
+            return;
+        }
+        const peerId = available.eligiblePeers[0].id;
+        setCreateLinkState({
+            associationId: available.associationId,
+            sourceId: available.end === 'source' ? instanceId : peerId,
+            targetId: available.end === 'target' ? instanceId : peerId,
+            fixed: available.end,
+            anchorInstanceId: instanceId
+        });
+    };
+
+    const submitCreateLink = () => {
+        if (!clientId || !createLinkState) {
+            return;
+        }
+        const { associationId, sourceId, targetId } = createLinkState;
+        if (!associationId || !sourceId || !targetId) {
+            return;
+        }
+        dispatchAction(
+            CreateInstanceLinkOperation.create({
+                associationId,
+                sourceInstanceId: sourceId,
+                targetInstanceId: targetId
+            })
+        );
+        setCreateLinkState(undefined);
+    };
+
+    const renderCreateLinkPicker = (eligibleSources: EligibleInstance[], eligibleTargets: EligibleInstance[]) => {
+        if (!createLinkState) {
+            return null;
+        }
+        const optionLabel = (candidate: EligibleInstance) =>
+            candidate.classifierName ? `${candidate.name} : ${candidate.classifierName}` : candidate.name;
+        const showSource = createLinkState.fixed !== 'source';
+        const showTarget = createLinkState.fixed !== 'target';
+        return (
+            <div className='instance-explorer__create-link'>
+                {showSource ? (
+                    <select
+                        autoFocus
+                        className='instance-explorer__input instance-explorer__slot-input'
+                        value={createLinkState.sourceId}
+                        onChange={event =>
+                            setCreateLinkState(current => (current ? { ...current, sourceId: event.target.value } : current))
+                        }
+                        onClick={event => event.stopPropagation()}
+                    >
+                        {eligibleSources.map(candidate => (
+                            <option key={candidate.id} value={candidate.id}>
+                                {optionLabel(candidate)}
+                            </option>
+                        ))}
+                    </select>
+                ) : null}
+                {showSource && showTarget ? <span className='instance-explorer__slot-equals'>→</span> : null}
+                {showTarget ? (
+                    <select
+                        autoFocus={!showSource}
+                        className='instance-explorer__input instance-explorer__slot-input'
+                        value={createLinkState.targetId}
+                        onChange={event =>
+                            setCreateLinkState(current => (current ? { ...current, targetId: event.target.value } : current))
+                        }
+                        onClick={event => event.stopPropagation()}
+                    >
+                        {eligibleTargets.map(candidate => (
+                            <option key={candidate.id} value={candidate.id}>
+                                {optionLabel(candidate)}
+                            </option>
+                        ))}
+                    </select>
+                ) : null}
+                <button
+                    className='instance-explorer__create-link-confirm'
+                    onClick={event => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        submitCreateLink();
+                    }}
+                    type='button'
+                >
+                    Create
+                </button>
+                <button
+                    className='instance-explorer__create-link-cancel'
+                    onClick={event => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setCreateLinkState(undefined);
+                    }}
+                    type='button'
+                >
+                    Cancel
+                </button>
+            </div>
+        );
     };
 
     const renderLinkPicker = (linkId: string, end: 'source' | 'target', eligible: EligibleInstance[], currentId: string) => {
@@ -237,11 +442,14 @@ export function InstanceExplorer(): ReactElement {
         const expanded = expandedInstances[instance.id];
         const isRenaming = editState?.kind === 'instance' && editState.targetId === instance.id;
 
+        const isSelected = selectedInstanceId === instance.id;
         return (
             <div key={instance.id} className='instance-explorer__instance'>
                 <button
-                    className='instance-explorer__row instance-explorer__row--instance'
-                    onClick={() => navigateTo(instance.id)}
+                    className={`instance-explorer__row instance-explorer__row--instance${
+                        isSelected ? ' instance-explorer__row--selected' : ''
+                    }`}
+                    onClick={() => selectInstance(instance.id)}
                     type='button'
                 >
                     <span
@@ -294,6 +502,42 @@ export function InstanceExplorer(): ReactElement {
                         {instance.links.map(renderLink)}
                     </div>
                 ) : null}
+                {expanded && instance.availableLinks.length > 0 ? (
+                    <div className='instance-explorer__add-links'>
+                        {instance.availableLinks.map(available => renderAvailableInstanceLink(instance.id, available))}
+                    </div>
+                ) : null}
+            </div>
+        );
+    };
+
+    const renderAvailableInstanceLink = (instanceId: string, available: AvailableInstanceLink) => {
+        const isCreatingHere =
+            createLinkState?.associationId === available.associationId &&
+            createLinkState.anchorInstanceId === instanceId &&
+            createLinkState.fixed === available.end;
+        const arrow = available.direction === 'outgoing' ? '→' : '←';
+        const eligibleSources = available.end === 'target' ? available.eligiblePeers : [];
+        const eligibleTargets = available.end === 'source' ? available.eligiblePeers : [];
+        return (
+            <div key={`${available.associationId}-${available.end}`} className='instance-explorer__add-link'>
+                <button
+                    className='instance-explorer__add-link-trigger'
+                    disabled={isCreatingHere}
+                    onClick={event => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        beginCreateLinkFromInstance(instanceId, available);
+                    }}
+                    title={`Add ${available.associationName} link`}
+                    type='button'
+                >
+                    <span className='codicon codicon-add' />
+                    <span className='instance-explorer__slot-feature'>{available.associationName}</span>
+                    <span className='instance-explorer__slot-equals'>{arrow}</span>
+                    <span className='instance-explorer__add-link-hint'>add link…</span>
+                </button>
+                {isCreatingHere ? renderCreateLinkPicker(eligibleSources, eligibleTargets) : null}
             </div>
         );
     };
@@ -386,14 +630,16 @@ export function InstanceExplorer(): ReactElement {
                         )}
                     </button>
                     <span className='instance-explorer__count'>{group.instances.length}</span>
-                    <button
-                        className='instance-explorer__icon-button'
-                        onClick={() => createInstance(group.classifierId)}
-                        title={`Create instance of ${group.classifierName}`}
-                        type='button'
-                    >
-                        <span className='codicon codicon-add' />
-                    </button>
+                    {group.isInstantiable ? (
+                        <button
+                            className='instance-explorer__icon-button'
+                            onClick={() => createInstance(group.classifierId)}
+                            title={`Create instance of ${group.classifierName}`}
+                            type='button'
+                        >
+                            <span className='codicon codicon-add' />
+                        </button>
+                    ) : null}
                 </div>
                 {expanded ? <div className='instance-explorer__children'>{group.instances.map(renderInstance)}</div> : null}
             </section>
@@ -402,6 +648,8 @@ export function InstanceExplorer(): ReactElement {
 
     const renderManyToManyRelation = (section: ManyToManyRelationSection) => {
         const expanded = expandedGroups[section.id];
+        const canCreate = section.eligibleSources.length > 0 && section.eligibleTargets.length > 0;
+        const isCreating = createLinkState?.associationId === section.id;
         return (
             <section key={section.id} className='instance-explorer__group'>
                 <div className='instance-explorer__row instance-explorer__row--group'>
@@ -415,7 +663,17 @@ export function InstanceExplorer(): ReactElement {
                         <span className='instance-explorer__label'>{`${section.name} : ${section.relationType}`}</span>
                     </button>
                     <span className='instance-explorer__count'>{section.links.length}</span>
+                    <button
+                        className='instance-explorer__icon-button'
+                        disabled={!canCreate || isCreating}
+                        onClick={() => beginCreateLink(section.id, section.eligibleSources, section.eligibleTargets)}
+                        title={canCreate ? `Create instance of ${section.name}` : 'Source or target has no eligible instances yet'}
+                        type='button'
+                    >
+                        <span className='codicon codicon-add' />
+                    </button>
                 </div>
+                {isCreating ? renderCreateLinkPicker(section.eligibleSources, section.eligibleTargets) : null}
                 {expanded ? (
                     <div className='instance-explorer__children'>
                         {section.links.map(link => {
@@ -484,13 +742,89 @@ export function InstanceExplorer(): ReactElement {
         );
     };
 
+    const renderAvailableSection = () => {
+        const filteredAvailable = filterAvailable(availableForInstantiation, query);
+        const totalAvailable = filteredAvailable.classifiers.length + filteredAvailable.associations.length;
+        if (totalAvailable === 0) {
+            return null;
+        }
+        const expanded = expandedGroups[AVAILABLE_SECTION_KEY];
+        return (
+            <section className='instance-explorer__group'>
+                <div className='instance-explorer__row instance-explorer__row--group'>
+                    <button
+                        className='instance-explorer__row-main'
+                        onClick={() =>
+                            setExpandedGroups(current => ({ ...current, [AVAILABLE_SECTION_KEY]: !current[AVAILABLE_SECTION_KEY] }))
+                        }
+                        type='button'
+                    >
+                        <span
+                            className={`codicon ${
+                                expanded ? 'codicon-chevron-down' : 'codicon-chevron-right'
+                            } instance-explorer__disclosure`}
+                        />
+                        <span className='codicon codicon-lightbulb instance-explorer__icon' />
+                        <span className='instance-explorer__label'>Available to instantiate</span>
+                    </button>
+                    <span className='instance-explorer__count'>{totalAvailable}</span>
+                </div>
+                {expanded ? (
+                    <div className='instance-explorer__children'>
+                        {filteredAvailable.classifiers.map(cls => (
+                            <div key={cls.classifierId} className='instance-explorer__row instance-explorer__row--instance'>
+                                <span className={`codicon ${classifierIcon(cls.classifierType)} instance-explorer__icon`} />
+                                <span className='instance-explorer__label'>{cls.classifierName}</span>
+                                <button
+                                    className='instance-explorer__icon-button'
+                                    onClick={() => createInstance(cls.classifierId)}
+                                    title={`Create instance of ${cls.classifierName}`}
+                                    type='button'
+                                >
+                                    <span className='codicon codicon-add' />
+                                </button>
+                            </div>
+                        ))}
+                        {filteredAvailable.associations.map(assoc => renderAvailableAssociation(assoc))}
+                    </div>
+                ) : null}
+            </section>
+        );
+    };
+
+    const renderAvailableAssociation = (assoc: AvailableAssociation) => {
+        const canCreate = assoc.eligibleSources.length > 0 && assoc.eligibleTargets.length > 0;
+        const isCreating = createLinkState?.associationId === assoc.associationId;
+        return (
+            <div key={assoc.associationId} className='instance-explorer__available-assoc'>
+                <div className='instance-explorer__row instance-explorer__row--instance'>
+                    <span className='codicon codicon-references instance-explorer__icon' />
+                    <span className='instance-explorer__label'>{`${assoc.associationName} : ${assoc.relationType}`}</span>
+                    <button
+                        className='instance-explorer__icon-button'
+                        disabled={!canCreate || isCreating}
+                        onClick={() => beginCreateLink(assoc.associationId, assoc.eligibleSources, assoc.eligibleTargets)}
+                        title={canCreate ? `Create instance of ${assoc.associationName}` : 'Source or target has no eligible instances yet'}
+                        type='button'
+                    >
+                        <span className='codicon codicon-add' />
+                    </button>
+                </div>
+                {isCreating ? renderCreateLinkPicker(assoc.eligibleSources, assoc.eligibleTargets) : null}
+            </div>
+        );
+    };
+
     const filteredManyToMany = filterManyToMany(manyToManyRelations, query);
-    const showEmptyState = filteredGroups.length === 0 && filteredUnclassified.length === 0 && filteredManyToMany.length === 0;
+    const filteredAvailableForEmptyCheck = filterAvailable(availableForInstantiation, query);
+    const hasAvailable =
+        filteredAvailableForEmptyCheck.classifiers.length > 0 || filteredAvailableForEmptyCheck.associations.length > 0;
+    const showEmptyState =
+        filteredGroups.length === 0 && filteredUnclassified.length === 0 && filteredManyToMany.length === 0 && !hasAvailable;
 
     return (
-        <div className='instance-explorer'>
+        <div className='instance-explorer' onKeyDown={handleRootKeyDown}>
             <header className='instance-explorer__header'>
-                <div className='instance-explorer__title'>Model Instance Explorer</div>
                 <div className='instance-explorer__subtitle'>{totalInstances} instance(s) in the current diagram</div>
                 <input
                     className='instance-explorer__input'
@@ -502,6 +836,8 @@ export function InstanceExplorer(): ReactElement {
             </header>
 
             <div className='instance-explorer__tree'>
+                {renderAvailableSection()}
+
                 {filteredGroups.map(renderGroup)}
 
                 {filteredUnclassified.length > 0 ? (
@@ -607,6 +943,19 @@ function filterInstances(instances: InstanceSummary[], query: string): InstanceS
             return slot.diagnostics.some(diagnostic => diagnostic.message.toLowerCase().includes(query));
         });
     });
+}
+
+function filterAvailable(available: AvailableForInstantiation, query: string): AvailableForInstantiation {
+    if (!query) {
+        return available;
+    }
+    return {
+        classifiers: available.classifiers.filter(cls => cls.classifierName.toLowerCase().includes(query)),
+        associations: available.associations.filter(
+            assoc =>
+                assoc.associationName.toLowerCase().includes(query) || assoc.relationType.toLowerCase().includes(query)
+        )
+    };
 }
 
 function filterManyToMany(sections: ManyToManyRelationSection[], query: string): ManyToManyRelationSection[] {
