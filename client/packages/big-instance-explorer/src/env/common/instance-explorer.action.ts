@@ -55,6 +55,7 @@ export interface ClassifierGroup {
     classifierId: string;
     classifierName: string;
     classifierType: ClassifierType;
+    isInstantiable: boolean;
     instances: InstanceSummary[];
 }
 
@@ -75,6 +76,27 @@ export interface ManyToManyRelationSection {
     name: string;
     relationType: string;
     links: ManyToManyLink[];
+    eligibleSources: EligibleInstance[];
+    eligibleTargets: EligibleInstance[];
+}
+
+export interface AvailableClassifier {
+    classifierId: string;
+    classifierName: string;
+    classifierType: ClassifierType;
+}
+
+export interface AvailableAssociation {
+    associationId: string;
+    associationName: string;
+    relationType: string;
+    eligibleSources: EligibleInstance[];
+    eligibleTargets: EligibleInstance[];
+}
+
+export interface AvailableForInstantiation {
+    classifiers: AvailableClassifier[];
+    associations: AvailableAssociation[];
 }
 
 export interface RequestInstanceExplorerDataAction extends RequestAction<InstanceExplorerDataResponse> {
@@ -102,6 +124,7 @@ export interface InstanceExplorerDataResponse extends ResponseAction {
     classifierGroups: ClassifierGroup[];
     unclassified: InstanceSummary[];
     manyToManyRelations: ManyToManyRelationSection[];
+    availableForInstantiation: AvailableForInstantiation;
 }
 
 export namespace InstanceExplorerDataResponse {
@@ -119,7 +142,8 @@ export namespace InstanceExplorerDataResponse {
             responseId: options?.responseId ?? '',
             classifierGroups: options?.classifierGroups ?? [],
             unclassified: options?.unclassified ?? [],
-            manyToManyRelations: options?.manyToManyRelations ?? []
+            manyToManyRelations: options?.manyToManyRelations ?? [],
+            availableForInstantiation: options?.availableForInstantiation ?? { classifiers: [], associations: [] }
         };
     }
 }
@@ -189,6 +213,35 @@ export namespace UpdateInstanceLinkEndOperation {
             linkId: options.linkId,
             end: options.end,
             newInstanceId: options.newInstanceId
+        };
+    }
+}
+
+export interface CreateInstanceLinkOperation extends Operation {
+    kind: typeof CreateInstanceLinkOperation.KIND;
+    associationId: string;
+    sourceInstanceId: string;
+    targetInstanceId: string;
+}
+
+export namespace CreateInstanceLinkOperation {
+    export const KIND = 'createInstanceLinkOperation';
+
+    export function is(object: unknown): object is CreateInstanceLinkOperation {
+        return Action.hasKind(object, KIND);
+    }
+
+    export function create(options: {
+        associationId: string;
+        sourceInstanceId: string;
+        targetInstanceId: string;
+    }): CreateInstanceLinkOperation {
+        return {
+            kind: KIND,
+            isOperation: true,
+            associationId: options.associationId,
+            sourceInstanceId: options.sourceInstanceId,
+            targetInstanceId: options.targetInstanceId
         };
     }
 }

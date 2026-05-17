@@ -7,12 +7,6 @@
  * SPDX-License-Identifier: MIT
  **********************************************************************************/
 
-html,
-body,
-#root {
-    height: 100%;
-}
-
 body {
     margin: 0;
     color: var(--vscode-foreground);
@@ -31,7 +25,6 @@ input {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    height: 100%;
     padding: 10px;
     box-sizing: border-box;
 }
@@ -68,8 +61,6 @@ input {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    overflow: auto;
-    min-height: 0;
 }
 
 .instance-explorer__group {
@@ -223,6 +214,56 @@ input {
 
 .instance-explorer__row--m2m {
     padding-left: 28px;
+}
+
+.instance-explorer__icon-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.instance-explorer__available-assoc {
+    display: flex;
+    flex-direction: column;
+}
+
+.instance-explorer__create-link {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px 8px 28px;
+}
+
+.instance-explorer__create-link select {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.instance-explorer__create-link-confirm,
+.instance-explorer__create-link-cancel {
+    flex: 0 0 auto;
+    border: 1px solid var(--vscode-button-border, transparent);
+    border-radius: 4px;
+    padding: 4px 10px;
+    cursor: pointer;
+}
+
+.instance-explorer__create-link-confirm {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+}
+
+.instance-explorer__create-link-confirm:hover {
+    background: var(--vscode-button-hoverBackground, var(--vscode-button-background));
+}
+
+.instance-explorer__create-link-cancel {
+    background: var(--vscode-button-secondaryBackground, transparent);
+    color: var(--vscode-button-secondaryForeground, inherit);
+}
+
+.instance-explorer__create-link-cancel:hover {
+    background: var(--vscode-button-secondaryHoverBackground, var(--vscode-list-hoverBackground));
 }
 
 .instance-explorer__warning {

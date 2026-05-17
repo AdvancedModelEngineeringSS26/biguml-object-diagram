@@ -9,6 +9,7 @@
 
 import { createRandomUUID, findAvailableNodeName, type SerializeAstNode, type SerializedRecordNode } from '@borkdominik-biguml/uml-model-server';
 import {
+    type Association,
     type Class,
     type DataType,
     type InstanceSpecification,
@@ -16,6 +17,7 @@ import {
     type LiteralSpecification,
     type Property,
     type Slot,
+    isAbstractClass,
     isAssociation,
     isClass,
     isDataType,
@@ -32,17 +34,21 @@ import {
     ModelPatchCommand,
     getDefaultProperties
 } from '@borkdominik-biguml/uml-glsp-server/vscode';
-import { ClassDiagramNodeTypes } from '@borkdominik-biguml/uml-glsp-server';
+import { ClassDiagramEdgeTypes, ClassDiagramNodeTypes } from '@borkdominik-biguml/uml-glsp-server';
 import { type ActionHandler, type Command, type MaybePromise, OperationHandler } from '@eclipse-glsp/server';
 import { streamAst } from 'langium';
 import { inject, injectable } from 'inversify';
 import { URI } from 'vscode-uri';
 import {
     CreateClassifierInstanceOperation,
+    CreateInstanceLinkOperation,
     InstanceExplorerDataResponse,
     RequestInstanceExplorerDataAction,
     UpdateInstanceLinkEndOperation,
     UpdateInstanceSlotValuesOperation,
+    type AvailableAssociation,
+    type AvailableClassifier,
+    type AvailableForInstantiation,
     type ClassifierGroup,
     type ClassifierType,
     type DiagnosticSummary,
@@ -86,7 +92,7 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
     execute(_action: RequestInstanceExplorerDataAction): MaybePromise<any[]> {
         const classifiersById = this.collectClassifiers();
         const instances = this.collectInstances(classifiersById);
-        const { linksByInstance, manyToManyRelations } = this.routeInstanceLinks(instances);
+        const { linksByInstance, manyToManyRelations, usedAssociationIds } = this.routeInstanceLinks(instances);
         const classifierGroups = new Map<string, ClassifierGroup>();
         const unclassified: InstanceSummary[] = [];
 
@@ -105,6 +111,7 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
                         classifierId: info.classifier.__id,
                         classifierName: info.classifier.name,
                         classifierType: info.classifierType,
+                        isInstantiable: isInstantiableClassifier(info.classifier),
                         instances: []
                     };
                     classifierGroups.set(summary.classifierId, group);
@@ -122,31 +129,82 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
             }))
             .sort((left, right) => left.classifierName.localeCompare(right.classifierName));
 
+        const availableForInstantiation = this.computeAvailableForInstantiation(
+            classifiersById,
+            classifierGroups,
+            instances,
+            usedAssociationIds
+        );
+
         return [
             InstanceExplorerDataResponse.create({
                 classifierGroups: groups,
                 unclassified: unclassified.sort(compareInstances),
-                manyToManyRelations: manyToManyRelations.sort((l, r) => l.name.localeCompare(r.name))
+                manyToManyRelations: manyToManyRelations.sort((l, r) => l.name.localeCompare(r.name)),
+                availableForInstantiation
             })
         ];
+    }
+
+    protected computeAvailableForInstantiation(
+        classifiersById: Map<string, ClassifierInfo>,
+        usedClassifierGroups: Map<string, ClassifierGroup>,
+        instances: InstanceMeta[],
+        usedAssociationIds: Set<string>
+    ): AvailableForInstantiation {
+        const availableClassifiers: AvailableClassifier[] = [];
+        for (const info of classifiersById.values()) {
+            if (usedClassifierGroups.has(info.classifier.__id)) {
+                continue;
+            }
+            if (!isInstantiableClassifier(info.classifier)) {
+                continue;
+            }
+            availableClassifiers.push({
+                classifierId: info.classifier.__id,
+                classifierName: info.classifier.name,
+                classifierType: info.classifierType
+            });
+        }
+        availableClassifiers.sort((l, r) => l.classifierName.localeCompare(r.classifierName));
+
+        const availableAssociations: AvailableAssociation[] = [];
+        for (const node of streamAst(this.modelState.semanticRoot)) {
+            if (!isAssociation(node)) continue;
+            if (usedAssociationIds.has(node.__id)) continue;
+
+            const { eligibleSources, eligibleTargets } = computeAssociationEligibility(node, instances);
+            availableAssociations.push({
+                associationId: node.__id,
+                associationName: node.name || node.__id,
+                relationType: node.$type,
+                eligibleSources,
+                eligibleTargets
+            });
+        }
+        availableAssociations.sort((l, r) => l.associationName.localeCompare(r.associationName));
+
+        return {
+            classifiers: availableClassifiers,
+            associations: availableAssociations
+        };
     }
 
     protected routeInstanceLinks(instances: InstanceMeta[]): {
         linksByInstance: Map<string, InstanceLinkSummary[]>;
         manyToManyRelations: ManyToManyRelationSection[];
+        usedAssociationIds: Set<string>;
     } {
         const linksByInstance = new Map<string, InstanceLinkSummary[]>();
         const m2mByAssociation = new Map<string, ManyToManyRelationSection>();
-        const eligibilityCache = new Map<string, { sources: EligibleInstance[]; targets: EligibleInstance[] }>();
+        const usedAssociationIds = new Set<string>();
+        const eligibilityCache = new Map<string, { eligibleSources: EligibleInstance[]; eligibleTargets: EligibleInstance[] }>();
 
-        const getEligibility = (associationId: string, sourceTypeId: string | undefined, targetTypeId: string | undefined) => {
-            let cached = eligibilityCache.get(associationId);
+        const getEligibility = (association: Association) => {
+            let cached = eligibilityCache.get(association.__id);
             if (!cached) {
-                cached = {
-                    sources: computeEligibleInstances(instances, sourceTypeId),
-                    targets: computeEligibleInstances(instances, targetTypeId)
-                };
-                eligibilityCache.set(associationId, cached);
+                cached = computeAssociationEligibility(association, instances);
+                eligibilityCache.set(association.__id, cached);
             }
             return cached;
         };
@@ -161,19 +219,20 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
                 continue;
             }
 
+            usedAssociationIds.add(association.__id);
             const sourceMany = isManyMultiplicity(association.sourceMultiplicity);
             const targetMany = isManyMultiplicity(association.targetMultiplicity);
             const relationName = node.name || association.name || association.__id;
-            const sourceTypeId = isSupportedClassifier(association.source?.ref) ? association.source.ref.__id : undefined;
-            const targetTypeId = isSupportedClassifier(association.target?.ref) ? association.target.ref.__id : undefined;
-            const { sources: eligibleSources, targets: eligibleTargets } = getEligibility(association.__id, sourceTypeId, targetTypeId);
+            const { eligibleSources, eligibleTargets } = getEligibility(association);
 
             if (sourceMany && targetMany) {
                 const section = m2mByAssociation.get(association.__id) ?? {
                     id: association.__id,
                     name: association.name || relationName,
                     relationType: association.$type,
-                    links: [] as ManyToManyLink[]
+                    links: [] as ManyToManyLink[],
+                    eligibleSources,
+                    eligibleTargets
                 };
                 section.links.push({
                     id: node.__id,
@@ -227,7 +286,7 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
             });
         }
 
-        return { linksByInstance, manyToManyRelations: Array.from(m2mByAssociation.values()) };
+        return { linksByInstance, manyToManyRelations: Array.from(m2mByAssociation.values()), usedAssociationIds };
     }
 
     protected collectInstances(classifiersById: Map<string, ClassifierInfo>): InstanceMeta[] {
@@ -366,7 +425,7 @@ export class CreateClassifierInstanceOperationHandler extends OperationHandler {
 
     override createCommand(operation: CreateClassifierInstanceOperation): Command | undefined {
         const classifier = this.modelState.index.findIdElement(operation.classifierId);
-        if (!isSupportedClassifier(classifier)) {
+        if (!isInstantiableClassifier(classifier)) {
             return undefined;
         }
 
@@ -503,6 +562,59 @@ export class UpdateInstanceLinkEndOperationHandler extends OperationHandler {
     }
 }
 
+@injectable()
+export class CreateInstanceLinkOperationHandler extends OperationHandler {
+    override operationType = CreateInstanceLinkOperation.KIND;
+
+    declare readonly modelState: DiagramModelState;
+
+    override createCommand(operation: CreateInstanceLinkOperation): Command | undefined {
+        const association = this.modelState.index.findIdElement(operation.associationId);
+        const source = this.modelState.index.findSemanticElement(operation.sourceInstanceId, isInstanceSpecification);
+        const target = this.modelState.index.findSemanticElement(operation.targetInstanceId, isInstanceSpecification);
+        if (!isAssociation(association) || !source || !target) {
+            return undefined;
+        }
+
+        const id = createRandomUUID();
+        const linkValue: SerializedRecordNode = {
+            $type: 'InstanceLink',
+            __id: id,
+            name: association.name || `${source.name}-${target.name}-link`,
+            association: {
+                ref: { __id: association.__id, __documentUri: association.$document?.uri },
+                $refText: association.name ?? association.__id
+            },
+            source: {
+                ref: { __id: source.__id, __documentUri: source.$document?.uri },
+                $refText: source.name
+            },
+            target: {
+                ref: { __id: target.__id, __documentUri: target.$document?.uri },
+                $refText: target.name
+            },
+            relationType: 'INSTANCE_LINK'
+        };
+
+        for (const { property, defaultValue } of getDefaultProperties(ClassDiagramEdgeTypes.INSTANCE_LINK)) {
+            if (linkValue[property] === undefined) {
+                linkValue[property] = defaultValue;
+            }
+        }
+
+        return new ModelPatchCommand(
+            this.modelState,
+            JSON.stringify([
+                {
+                    op: 'add',
+                    path: '/diagram/relations/-',
+                    value: linkValue
+                }
+            ])
+        );
+    }
+}
+
 function classifierTypeOf(classifier: SupportedClassifier): ClassifierType {
     if (isInterface(classifier)) {
         return 'Interface';
@@ -515,6 +627,16 @@ function classifierTypeOf(classifier: SupportedClassifier): ClassifierType {
 
 function isSupportedClassifier(value: unknown): value is SupportedClassifier {
     return isClass(value) || isInterface(value) || isDataType(value);
+}
+
+function isInstantiableClassifier(value: unknown): value is SupportedClassifier {
+    // Abstract classes (either via the dedicated AbstractClass AST type, or a regular Class with isAbstract: true)
+    // and interfaces cannot have instances.
+    if (!isSupportedClassifier(value)) return false;
+    if (isInterface(value)) return false;
+    if (isAbstractClass(value)) return false;
+    if (isClass(value) && (value as Class).isAbstract === true) return false;
+    return true;
 }
 
 function owningClassifier(property: Property): SupportedClassifier | undefined {
@@ -630,6 +752,18 @@ function computeEligibleInstances(instances: InstanceMeta[], classifierId: strin
             classifierName: meta.classifier?.name
         }))
         .sort((l, r) => l.name.localeCompare(r.name));
+}
+
+function computeAssociationEligibility(
+    association: Association,
+    instances: InstanceMeta[]
+): { eligibleSources: EligibleInstance[]; eligibleTargets: EligibleInstance[] } {
+    const sourceTypeId = isSupportedClassifier(association.source?.ref) ? association.source.ref.__id : undefined;
+    const targetTypeId = isSupportedClassifier(association.target?.ref) ? association.target.ref.__id : undefined;
+    return {
+        eligibleSources: computeEligibleInstances(instances, sourceTypeId),
+        eligibleTargets: computeEligibleInstances(instances, targetTypeId)
+    };
 }
 
 function isManyMultiplicity(value: string | undefined): boolean {
