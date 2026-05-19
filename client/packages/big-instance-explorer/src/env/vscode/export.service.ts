@@ -6,6 +6,7 @@
  *
  * SPDX-License-Identifier: MIT
  **********************************************************************************/
+
 import { TYPES, type ActionDispatcher, type ActionListener, type OnActivate, type OnDispose, type SelectionService } from '@borkdominik-biguml/big-vscode/vscode';
 import { DisposableCollection } from '@eclipse-glsp/protocol';
 import { inject, injectable } from 'inversify';
@@ -17,9 +18,9 @@ import {
     AvailableExportTemplatesResponse,
     RequestAvailableExportTemplatesAction,
     RequestSaveExportedInstancesAction,
-    SaveExportedInstancesResponse,
-    type ExportTemplateSummary
+    SaveExportedInstancesResponse
 } from '../common/index.js';
+import type { ExportTemplateSummary } from '../common/index.js';
 
 @injectable()
 export class InstanceExportService implements OnActivate, OnDispose {
@@ -44,39 +45,41 @@ export class InstanceExportService implements OnActivate, OnDispose {
         this.toDispose.push(
             this.actionListener.handleVSCodeRequest<RequestAvailableExportTemplatesAction>(
                 RequestAvailableExportTemplatesAction.KIND,
-                async message => {
-                    return AvailableExportTemplatesResponse.create({
+                async message =>
+                    AvailableExportTemplatesResponse.create({
                         responseId: message.action.requestId,
                         templates: await this.listTemplates(),
-                        workspaceTemplateDirectory: null
-                    });
-                }
+                        workspaceTemplateDirectory: this.getWorkspaceTemplateDirectory()
+                    })
             ),
-            this.actionListener.handleVSCodeRequest<RequestSaveExportedInstancesAction>(RequestSaveExportedInstancesAction.KIND, async message => {
-                try {
-                    const target = await this.selectExportTarget(message.action.suggestedFileName);
-                    if (!target) {
+            this.actionListener.handleVSCodeRequest<RequestSaveExportedInstancesAction>(
+                RequestSaveExportedInstancesAction.KIND,
+                async message => {
+                    try {
+                        const target = await this.selectExportTarget(message.action.suggestedFileName);
+                        if (!target) {
+                            return SaveExportedInstancesResponse.create({
+                                responseId: message.action.requestId,
+                                success: false,
+                                message: 'Export cancelled.'
+                            });
+                        }
+
+                        await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(message.action.content));
+                        return SaveExportedInstancesResponse.create({
+                            responseId: message.action.requestId,
+                            success: true,
+                            filePath: target.fsPath
+                        });
+                    } catch (error: any) {
                         return SaveExportedInstancesResponse.create({
                             responseId: message.action.requestId,
                             success: false,
-                            message: 'Export cancelled.'
+                            message: error?.message ?? String(error)
                         });
                     }
-
-                    await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(message.action.content));
-                    return SaveExportedInstancesResponse.create({
-                        responseId: message.action.requestId,
-                        success: true,
-                        filePath: target.fsPath
-                    });
-                } catch (error: any) {
-                    return SaveExportedInstancesResponse.create({
-                        responseId: message.action.requestId,
-                        success: false,
-                        message: error?.message ?? String(error)
-                    });
                 }
-            })
+            )
         );
     }
 
@@ -100,32 +103,79 @@ export class InstanceExportService implements OnActivate, OnDispose {
     }
 
     protected async listTemplates(): Promise<ExportTemplateSummary[]> {
+        const sources = [
+            {
+                directory: this.resolveInstalledTemplateDirectory(),
+                kind: 'builtin' as const,
+                descriptionPrefix: 'Template from templates'
+            },
+            {
+                directory: this.resolvePackageTemplateDirectory(),
+                kind: 'builtin' as const,
+                descriptionPrefix: `Template from ${join('packages', 'big-instance-explorer', 'templates')}`
+            },
+            {
+                directory: this.getWorkspaceTemplateDirectory(),
+                kind: 'workspace' as const,
+                descriptionPrefix: `Workspace template from ${join('.biguml', 'templates')}`
+            }
+        ];
+
+        const templates = new Map<string, ExportTemplateSummary>();
+
+        for (const source of sources) {
+            if (!source.directory) {
+                continue;
+            }
+
+            for (const template of await this.readTemplatesFromDirectory(source.directory, source.kind, source.descriptionPrefix)) {
+                templates.set(`${template.kind}:${template.name}`, template);
+            }
+        }
+
+        return Array.from(templates.values()).sort((left, right) => {
+            if (left.kind !== right.kind) {
+                return left.kind.localeCompare(right.kind);
+            }
+
+            return left.label.localeCompare(right.label);
+        });
+    }
+
+    protected async readTemplatesFromDirectory(
+        directory: string,
+        kind: ExportTemplateSummary['kind'],
+        descriptionPrefix: string
+    ): Promise<ExportTemplateSummary[]> {
         try {
-            const templateDirectory = this.getBuiltInTemplateDirectory();
-            const entries = await vscode.workspace.fs.readDirectory(vscode.Uri.file(templateDirectory));
+            const entries = await vscode.workspace.fs.readDirectory(vscode.Uri.file(directory));
             return entries
                 .filter(([name, type]) => type === vscode.FileType.File && name.toLowerCase().endsWith('.eta'))
                 .map(([name]) => ({
                     name: basename(name, '.eta'),
                     label: basename(name, '.eta'),
-                    kind: 'builtin' as const,
+                    kind,
                     extension: this.inferExtensionFromTemplate(name),
-                    description: `Template from ${join('packages', 'big-instance-explorer', 'templates', name)}.`,
-                    file: join(templateDirectory, name)
-                }))
-                .sort((left, right) => left.label.localeCompare(right.label));
+                    description: `${descriptionPrefix}/${name}.`,
+                    file: join(directory, name)
+                }));
         } catch {
             return [];
         }
     }
 
-    protected getBuiltInTemplateDirectory(): string {
-        const installedTemplates = this.resolvePackageTemplateDirectory();
-        if (installedTemplates) {
-            return installedTemplates;
+    protected resolveInstalledTemplateDirectory(): string | null {
+        const templateDirectory = this.extensionContext.asAbsolutePath('templates');
+        return existsSync(templateDirectory) ? templateDirectory : null;
+    }
+
+    protected getWorkspaceTemplateDirectory(): string | null {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!workspaceFolder) {
+            return null;
         }
 
-        return join(process.cwd(), 'packages', 'big-instance-explorer', 'templates');
+        return join(workspaceFolder.uri.fsPath, '.biguml', 'templates');
     }
 
     protected resolvePackageTemplateDirectory(): string | null {
@@ -138,8 +188,7 @@ export class InstanceExportService implements OnActivate, OnDispose {
         } catch {
             return null;
         }
-    }   
-
+    }
 
     protected async selectExportTarget(suggestedFileName: string): Promise<vscode.Uri | undefined> {
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];

@@ -6,21 +6,23 @@
  *
  * SPDX-License-Identifier: MIT
  **********************************************************************************/
+
 import { DiagramModelState } from '@borkdominik-biguml/uml-glsp-server/vscode';
 import {
     isClass,
     isDataType,
     isInstanceLink,
     isInstanceSpecification,
-    isInterface
+    isInterface,
+    type InstanceSpecification
 } from '@borkdominik-biguml/uml-model-server/grammar';
 import { type ActionHandler, type MaybePromise } from '@eclipse-glsp/server';
 import { Eta } from 'eta';
-import { inject, injectable } from 'inversify';
-import { streamAst } from 'langium';
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { basename, dirname, join } from 'node:path';
+import { injectable, inject } from 'inversify';
+import { streamAst } from 'langium';
 import { ExportInstancesResponse, RequestExportInstancesAction, type ExportScope } from '../common/index.js';
 
 interface ExportInstance {
@@ -99,7 +101,7 @@ export class ExportInstancesActionHandler implements ActionHandler {
                 timestamp: new Date().toISOString()
             };
 
-            const templatePath = this.resolveTemplatePath(action.action.templateName || 'json');
+            const templatePath = this.resolveTemplatePath(action.action.templateName || 'json', action.action.customTemplateFile);
             const templateString = readFileSync(templatePath, { encoding: 'utf8' });
             const rendered = new Eta({ autoEscape: false }).renderString(templateString, context) ?? '';
 
@@ -182,7 +184,11 @@ export class ExportInstancesActionHandler implements ActionHandler {
         return this.modelState.semanticUri ? basename(this.modelState.semanticUri) : 'diagram';
     }
 
-    protected resolveTemplatePath(templateName: string): string {
+    protected resolveTemplatePath(templateName: string, customTemplateFile?: string | null): string {
+        if (customTemplateFile) {
+            return customTemplateFile;
+        }
+
         const fileName = `${templateName}.eta`;
         const templatePath = this.resolvePackageTemplatePath(fileName);
         if (!templatePath) {
