@@ -12,19 +12,28 @@ import { UpdateOperation } from '@borkdominik-biguml/uml-glsp-server';
 import { CenterAction, SelectAction, SelectAllAction } from '@eclipse-glsp/protocol';
 import { useContext, useEffect, useState, type ChangeEvent, type KeyboardEvent, type ReactElement } from 'react';
 import {
+    AvailableExportTemplatesResponse,
     CreateClassifierInstanceOperation,
+    ExportInstancesNotification,
+    ExportInstancesResponse,
     InstanceExplorerDataResponse,
+    RequestAvailableExportTemplatesAction,
+    RequestExportInstancesAction,
+    RequestSaveExportedInstancesAction,
+    SaveExportedInstancesResponse,
     UpdateInstanceLinkEndOperation,
     UpdateInstanceSlotValuesOperation,
     type ClassifierGroup,
     type ClassifierType,
     type DiagnosticSummary,
+    type ExportTemplateSummary,
     type EligibleInstance,
     type InstanceLinkSummary,
     type InstanceSummary,
     type ManyToManyRelationSection,
     type SlotSummary
 } from '../common/index.js';
+import { ExportDialog } from './export-dialog.component.js';
 
 type EditTarget = 'slot' | 'instance' | 'classifier';
 
@@ -40,7 +49,7 @@ interface LinkEditState {
 }
 
 export function InstanceExplorer(): ReactElement {
-    const { clientId, dispatchAction, listenAction } = useContext(VSCodeContext);
+    const { clientId, dispatchAction, listenAction, listenNotification } = useContext(VSCodeContext);
     const [classifierGroups, setClassifierGroups] = useState<ClassifierGroup[]>([]);
     const [unclassified, setUnclassified] = useState<InstanceSummary[]>([]);
     const [manyToManyRelations, setManyToManyRelations] = useState<ManyToManyRelationSection[]>([]);
@@ -49,10 +58,37 @@ export function InstanceExplorer(): ReactElement {
     const [expandedInstances, setExpandedInstances] = useState<Record<string, boolean>>({});
     const [editState, setEditState] = useState<EditState | undefined>();
     const [linkEditState, setLinkEditState] = useState<LinkEditState | undefined>();
+    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+    const [selectedDiagramInstanceIds, setSelectedDiagramInstanceIds] = useState<string[]>([]);
+    const [templates, setTemplates] = useState<ExportTemplateSummary[]>([]);
+    const [workspaceTemplateDirectory, setWorkspaceTemplateDirectory] = useState<string | null>(null);
+    const [exportResult, setExportResult] = useState('');
+    const [exportStatusMessage, setExportStatusMessage] = useState<string | undefined>();
+    const [isSavingExport, setIsSavingExport] = useState(false);
 
     useEffect(() => {
         listenAction(action => {
             if (!InstanceExplorerDataResponse.is(action)) {
+                if (AvailableExportTemplatesResponse.is(action)) {
+                    setTemplates(action.templates);
+                    setWorkspaceTemplateDirectory(action.workspaceTemplateDirectory ?? null);
+                    return;
+                }
+
+                if (ExportInstancesResponse.is(action)) {
+                    if (action.success) {
+                        setExportResult(action.content ?? '');
+                    }
+                    setExportStatusMessage(action.success ? 'Preview rendered successfully.' : action.message ?? 'Export failed.');
+                    return;
+                }
+
+                if (SaveExportedInstancesResponse.is(action)) {
+                    setIsSavingExport(false);
+                    setExportStatusMessage(action.success ? `Export saved to ${action.filePath}.` : action.message ?? 'Could not save export.');
+                    return;
+                }
+
                 return;
             }
 
@@ -61,6 +97,17 @@ export function InstanceExplorer(): ReactElement {
             setManyToManyRelations(action.manyToManyRelations ?? []);
         });
     }, [listenAction]);
+
+    useEffect(() => {
+        listenNotification(ExportInstancesNotification.OpenDialog, () => {
+            setIsExportDialogOpen(true);
+            setExportStatusMessage(undefined);
+            dispatchAction(RequestAvailableExportTemplatesAction.create());
+        });
+        listenNotification(ExportInstancesNotification.SelectionChanged, params => {
+            setSelectedDiagramInstanceIds(params?.selectedElementIds ?? []);
+        });
+    }, [dispatchAction, listenNotification]);
 
     useEffect(() => {
         setExpandedGroups(current => {
@@ -490,8 +537,22 @@ export function InstanceExplorer(): ReactElement {
     return (
         <div className='instance-explorer'>
             <header className='instance-explorer__header'>
-                <div className='instance-explorer__title'>Model Instance Explorer</div>
-                <div className='instance-explorer__subtitle'>{totalInstances} instance(s) in the current diagram</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start' }}>
+                    <div>
+                        <div className='instance-explorer__title'>Model Instance Explorer</div>
+                        <div className='instance-explorer__subtitle'>{totalInstances} instance(s) in the current diagram</div>
+                    </div>
+                    <button
+                        onClick={() => {
+                            setIsExportDialogOpen(true);
+                            setExportStatusMessage(undefined);
+                            dispatchAction(RequestAvailableExportTemplatesAction.create());
+                        }}
+                        type='button'
+                    >
+                        Export
+                    </button>
+                </div>
                 <input
                     className='instance-explorer__input'
                     onChange={(event: ChangeEvent<HTMLInputElement>) => setSearchText(event.target.value)}
@@ -534,6 +595,44 @@ export function InstanceExplorer(): ReactElement {
                     <div className='instance-explorer__empty'>No matching instances were found in the active diagram.</div>
                 ) : null}
             </div>
+
+            {isExportDialogOpen ? (
+                <ExportDialog
+                    classifierGroups={classifierGroups}
+                    isSaving={isSavingExport}
+                    onClose={() => setIsExportDialogOpen(false)}
+                    onExport={options => {
+                        setExportStatusMessage(undefined);
+                        setExportResult('');
+                        dispatchAction(
+                            RequestExportInstancesAction.create({
+                                action: {
+                                    scope: options.scope,
+                                    classifierIds: options.classifierIds,
+                                    selection: options.selection,
+                                    templateName: options.templateName,
+                                    customTemplateFile: options.customTemplateFile
+                                }
+                            })
+                        );
+                    }}
+                    onSave={({ suggestedFileName }) => {
+                        setIsSavingExport(true);
+                        dispatchAction(
+                            RequestSaveExportedInstancesAction.create({
+                                content: exportResult,
+                                suggestedFileName
+                            })
+                        );
+                    }}
+                    result={exportResult}
+                    selectedInstanceIds={selectedDiagramInstanceIds}
+                    statusMessage={exportStatusMessage}
+                    templates={templates}
+                    unclassified={unclassified}
+                    workspaceTemplateDirectory={workspaceTemplateDirectory}
+                />
+            ) : null}
         </div>
     );
 }

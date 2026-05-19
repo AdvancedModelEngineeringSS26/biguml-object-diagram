@@ -6,162 +6,243 @@
  *
  * SPDX-License-Identifier: MIT
  **********************************************************************************/
+import { useEffect, useMemo, useState, type CSSProperties, type ChangeEvent, type ReactElement } from 'react';
+import type { ClassifierGroup, ExportScope, ExportTemplateSummary, InstanceSummary } from '../common/index.js';
 
-import { VSCodeContext } from '@borkdominik-biguml/big-components';
-import { useContext, useEffect, useMemo, useState, type ChangeEvent, type ReactElement } from 'react';
-import {
-    ExportInstancesResponse,
-    InstanceExplorerDataResponse,
-    RequestExportInstancesAction,
-    type ClassifierGroup,
-    type InstanceSummary
-} from '../common/index.js';
+interface ExportDialogProps {
+    classifierGroups: ClassifierGroup[];
+    unclassified: InstanceSummary[];
+    selectedInstanceIds: string[];
+    templates: ExportTemplateSummary[];
+    workspaceTemplateDirectory?: string | null;
+    result: string;
+    statusMessage?: string;
+    isSaving: boolean;
+    onClose: () => void;
+    onExport: (options: {
+        scope: ExportScope;
+        classifierIds?: string[];
+        selection?: string[];
+        templateName: string;
+        customTemplateFile?: string | null;
+    }) => void;
+    onSave: (options: { suggestedFileName: string }) => void;
+}
 
-export function ExportDialog(): ReactElement {
-    const { dispatchAction, listenAction } = useContext(VSCodeContext);
-    const [template, setTemplate] = useState('json');
-    const [scope, setScope] = useState<'all' | 'byClassifier' | 'selection'>('all');
-    const [classifierId, setClassifierId] = useState<string>('');
-    const [selectedInstanceIds, setSelectedInstanceIds] = useState<string[]>([]);
-    const [classifierGroups, setClassifierGroups] = useState<ClassifierGroup[]>([]);
-    const [unclassified, setUnclassified] = useState<InstanceSummary[]>([]);
-    const [result, setResult] = useState<string>('');
+export function ExportDialog(props: ExportDialogProps): ReactElement {
+    const [templateName, setTemplateName] = useState('json');
+    const [scope, setScope] = useState<ExportScope>('all');
+    const [classifierIds, setClassifierIds] = useState<string[]>([]);
+
+    const availableInstances = useMemo(
+        () => [...props.classifierGroups.flatMap(group => group.instances), ...props.unclassified],
+        [props.classifierGroups, props.unclassified]
+    );
+    const selectedInstances = useMemo(
+        () => availableInstances.filter(instance => props.selectedInstanceIds.includes(instance.id)),
+        [availableInstances, props.selectedInstanceIds]
+    );
+    const selectedTemplate = useMemo(
+        () => props.templates.find(template => template.name === templateName) ?? props.templates[0],
+        [props.templates, templateName]
+    );
 
     useEffect(() => {
-        listenAction(action => {
-            if (InstanceExplorerDataResponse.is(action)) {
-                setClassifierGroups(action.classifierGroups ?? []);
-                setUnclassified(action.unclassified ?? []);
-                return;
-            }
-
-            if (ExportInstancesResponse.is(action)) {
-                if (action.success && action.content) {
-                    setResult(action.content);
-                } else {
-                    setResult(action.message ?? 'Export failed');
-                }
-            }
-        });
-    }, [listenAction]);
-
-    const availableInstances = useMemo(() => flattenInstances(classifierGroups, unclassified), [classifierGroups, unclassified]);
-
-    useEffect(() => {
-        if (scope !== 'selection') {
+        if (props.templates.length === 0) {
             return;
         }
-
-        setSelectedInstanceIds(current => {
-            const allowed = new Set(availableInstances.map(instance => instance.id));
-            const filtered = current.filter(id => allowed.has(id));
-            if (filtered.length > 0) {
-                return filtered;
-            }
-            return availableInstances.slice(0, 1).map(instance => instance.id);
-        });
-    }, [availableInstances, scope]);
+        if (!props.templates.some(template => template.name === templateName)) {
+            setTemplateName(props.templates[0].name);
+        }
+    }, [props.templates, templateName]);
 
     useEffect(() => {
-        if (scope === 'byClassifier' && !classifierId && classifierGroups.length > 0) {
-            setClassifierId(classifierGroups[0].classifierId);
+        if (props.classifierGroups.length === 0) {
+            setClassifierIds([]);
+            return;
         }
-    }, [classifierGroups, classifierId, scope]);
+        setClassifierIds(current => (current.length > 0 ? current : [props.classifierGroups[0].classifierId]));
+    }, [props.classifierGroups]);
 
-    const doExport = () => {
-        dispatchAction(
-            RequestExportInstancesAction.create({
-                action: {
-                    scope,
-                    classifierId: scope === 'byClassifier' ? classifierId : undefined,
-                    selection: scope === 'selection' ? selectedInstanceIds : undefined,
-                    templateName: template,
-                    customTemplateFile: null
-                }
-            })
-        );
+    const selectionDisabled = scope === 'selection' && selectedInstances.length === 0;
+    const classifierDisabled = scope === 'byClassifier' && classifierIds.length === 0;
+    const exportDisabled = !selectedTemplate || selectionDisabled || classifierDisabled;
+
+    const handleClassifierSelection = (event: ChangeEvent<HTMLSelectElement>) => {
+        const next = Array.from(event.target.selectedOptions).map(option => option.value);
+        setClassifierIds(next);
     };
 
-    const downloadResult = () => {
-        const blob = new Blob([result], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'instances_export.txt';
-        a.click();
-        URL.revokeObjectURL(url);
+    const handleExport = () => {
+        if (!selectedTemplate) {
+            return;
+        }
+        props.onExport({
+            scope,
+            classifierIds: scope === 'byClassifier' ? classifierIds : undefined,
+            selection: scope === 'selection' ? selectedInstances.map(instance => instance.id) : undefined,
+            templateName: selectedTemplate.name,
+            customTemplateFile: selectedTemplate.file ?? null
+        });
     };
+
+    const suggestedFileName = `instances.${selectedTemplate?.extension ?? 'txt'}`;
 
     return (
-        <div className='export-dialog'>
-            <h3>Export Instances</h3>
-            <div>
-                <label>Template:</label>
-                <select value={template} onChange={(event: ChangeEvent<HTMLSelectElement>) => setTemplate(event.target.value)}>
-                    <option value='json'>JSON</option>
-                    <option value='csv'>CSV</option>
-                    <option value='xml'>XML</option>
-                </select>
-            </div>
-            <div>
-                <label>Scope:</label>
-                <select value={scope} onChange={event => setScope(event.target.value as 'all' | 'byClassifier' | 'selection')}>
-                    <option value='all'>All instances</option>
-                    <option value='byClassifier'>By classifier</option>
-                    <option value='selection'>Selection</option>
-                </select>
-            </div>
-
-            {scope === 'byClassifier' && (
-                <div>
-                    <label>Classifier:</label>
-                    <select value={classifierId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setClassifierId(event.target.value)}>
-                        {classifierGroups.map(group => (
-                            <option key={group.classifierId} value={group.classifierId}>
-                                {group.classifierName}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-            )}
-
-            {scope === 'selection' && (
-                <div className='export-dialog__selection'>
-                    <div>Select instances to export:</div>
-                    {availableInstances.map(instance => (
-                        <label key={instance.id} style={{ display: 'block' }}>
-                            <input
-                                checked={selectedInstanceIds.includes(instance.id)}
-                                onChange={event => {
-                                    setSelectedInstanceIds(current =>
-                                        event.target.checked ? [...current, instance.id] : current.filter(id => id !== instance.id)
-                                    );
-                                }}
-                                type='checkbox'
-                            />{' '}
-                            {instance.classifierName ? `${instance.name} : ${instance.classifierName}` : instance.name}
-                        </label>
-                    ))}
-                </div>
-            )}
-
-            <div style={{ marginTop: 8 }}>
-                <button onClick={doExport}>Export</button>
-            </div>
-
-            {result && (
-                <div style={{ marginTop: 12 }}>
-                    <h4>Result</h4>
-                    <textarea readOnly value={result} style={{ width: '100%', height: 240 }} />
+        <div style={overlayStyle}>
+            <div style={dialogStyle}>
+                <div style={headerStyle}>
                     <div>
-                        <button onClick={downloadResult}>Download</button>
+                        <div style={titleStyle}>Export Instances</div>
+                        <div style={subtitleStyle}>Render the current diagram data through a built-in or workspace Eta template.</div>
                     </div>
+                    <button onClick={props.onClose} style={closeButtonStyle} type='button'>
+                        <span className='codicon codicon-close' />
+                    </button>
                 </div>
-            )}
+
+                <div style={bodyStyle}>
+                    <label style={fieldStyle}>
+                        <span>Template</span>
+                        <select value={templateName} onChange={event => setTemplateName(event.target.value)}>
+                            {props.templates.map(template => (
+                                <option key={`${template.kind}:${template.name}`} value={template.name}>
+                                    {template.label} {template.kind === 'workspace' ? '(workspace)' : '(built-in)'}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+
+                    <label style={fieldStyle}>
+                        <span>Scope</span>
+                        <select value={scope} onChange={event => setScope(event.target.value as ExportScope)}>
+                            <option value='all'>All instances</option>
+                            <option value='byClassifier'>By classifier</option>
+                            <option value='selection'>Current diagram selection</option>
+                        </select>
+                    </label>
+
+                    {scope === 'byClassifier' ? (
+                        <label style={fieldStyle}>
+                            <span>Classifiers</span>
+                            <select multiple onChange={handleClassifierSelection} size={Math.min(Math.max(props.classifierGroups.length, 3), 8)} value={classifierIds}>
+                                {props.classifierGroups.map(group => (
+                                    <option key={group.classifierId} value={group.classifierId}>
+                                        {group.classifierName} ({group.instances.length})
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                    ) : null}
+
+                    {scope === 'selection' ? (
+                        <div style={fieldStyle}>
+                            <span>Selected instances</span>
+                            <div style={selectionPanelStyle}>
+                                {selectedInstances.length > 0 ? (
+                                    selectedInstances.map(instance => (
+                                        <div key={instance.id}>
+                                            {instance.classifierName ? `${instance.name} : ${instance.classifierName}` : instance.name}
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div>No `InstanceSpecification` is currently selected in the diagram.</div>
+                                )}
+                            </div>
+                        </div>
+                    ) : null}
+
+                    <div style={referenceStyle}>
+                        <div style={referenceTitleStyle}>Template Reference</div>
+                        <div>`it.instances[]`, `it.classifiers[]`, `it.links[]`, `it.diagramName`, `it.timestamp`</div>
+                        <div>Each instance exposes `name`, `classifierName`, `classifierId`, and `slots[]` with `featureName`, `value`, and `values[]`.</div>
+                        {props.workspaceTemplateDirectory ? <div>Workspace templates are loaded from `{props.workspaceTemplateDirectory}`.</div> : null}
+                    </div>
+
+                    {selectedTemplate?.description ? <div style={descriptionStyle}>{selectedTemplate.description}</div> : null}
+
+                    {props.statusMessage ? <div style={statusStyle}>{props.statusMessage}</div> : null}
+
+                    <div style={buttonRowStyle}>
+                        <button disabled={exportDisabled} onClick={handleExport} type='button'>
+                            Render Preview
+                        </button>
+                        <button disabled={!props.result || props.isSaving} onClick={() => props.onSave({ suggestedFileName })} type='button'>
+                            {props.isSaving ? 'Saving…' : 'Save Export…'}
+                        </button>
+                    </div>
+
+                    <textarea readOnly style={resultStyle} value={props.result} />
+                </div>
+            </div>
         </div>
     );
 }
 
-function flattenInstances(classifierGroups: ClassifierGroup[], unclassified: InstanceSummary[]): InstanceSummary[] {
-    return [...classifierGroups.flatMap(group => group.instances), ...unclassified];
-}
+const overlayStyle: CSSProperties = {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(0, 0, 0, 0.35)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '24px',
+    zIndex: 10
+};
+
+const dialogStyle: CSSProperties = {
+    width: 'min(880px, 100%)',
+    maxHeight: '90vh',
+    overflow: 'auto',
+    background: 'var(--vscode-editor-background)',
+    color: 'var(--vscode-editor-foreground)',
+    border: '1px solid var(--vscode-panel-border)',
+    borderRadius: '8px',
+    boxShadow: '0 12px 40px rgba(0, 0, 0, 0.25)'
+};
+
+const headerStyle: CSSProperties = {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: '12px',
+    padding: '16px 18px',
+    borderBottom: '1px solid var(--vscode-panel-border)'
+};
+
+const titleStyle: CSSProperties = { fontSize: '16px', fontWeight: 600 };
+const subtitleStyle: CSSProperties = { opacity: 0.75, fontSize: '12px', marginTop: '4px' };
+const closeButtonStyle: CSSProperties = { background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer' };
+const bodyStyle: CSSProperties = { display: 'grid', gap: '12px', padding: '18px' };
+const fieldStyle: CSSProperties = { display: 'grid', gap: '6px' };
+const selectionPanelStyle: CSSProperties = {
+    border: '1px solid var(--vscode-panel-border)',
+    borderRadius: '4px',
+    padding: '10px',
+    display: 'grid',
+    gap: '4px',
+    maxHeight: '140px',
+    overflow: 'auto'
+};
+const referenceStyle: CSSProperties = {
+    border: '1px solid var(--vscode-panel-border)',
+    borderRadius: '4px',
+    padding: '10px',
+    display: 'grid',
+    gap: '4px',
+    fontSize: '12px',
+    opacity: 0.9
+};
+const referenceTitleStyle: CSSProperties = { fontWeight: 600, opacity: 1 };
+const descriptionStyle: CSSProperties = { fontSize: '12px', opacity: 0.8 };
+const statusStyle: CSSProperties = {
+    padding: '8px 10px',
+    borderRadius: '4px',
+    background: 'var(--vscode-textCodeBlock-background)'
+};
+const buttonRowStyle: CSSProperties = { display: 'flex', gap: '8px', justifyContent: 'flex-start' };
+const resultStyle: CSSProperties = {
+    width: '100%',
+    minHeight: '280px',
+    resize: 'vertical',
+    fontFamily: 'var(--vscode-editor-font-family)'
+};
