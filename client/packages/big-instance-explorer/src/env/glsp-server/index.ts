@@ -9,3 +9,4 @@
 
 export * from './instance-explorer.handler.js';
 export * from './instance-explorer.module.js';
+export * from './export.handler.js';
