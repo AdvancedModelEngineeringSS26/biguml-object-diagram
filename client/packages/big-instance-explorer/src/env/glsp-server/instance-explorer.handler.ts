@@ -9,6 +9,7 @@
 
 import { createRandomUUID, findAvailableNodeName, type SerializeAstNode, type SerializedRecordNode } from '@borkdominik-biguml/uml-model-server';
 import {
+    type Association,
     type Class,
     type DataType,
     type InstanceSpecification,
@@ -16,6 +17,7 @@ import {
     type LiteralSpecification,
     type Property,
     type Slot,
+    isAbstractClass,
     isAssociation,
     isClass,
     isDataType,
@@ -32,17 +34,22 @@ import {
     ModelPatchCommand,
     getDefaultProperties
 } from '@borkdominik-biguml/uml-glsp-server/vscode';
-import { ClassDiagramNodeTypes } from '@borkdominik-biguml/uml-glsp-server';
+import { ClassDiagramEdgeTypes, ClassDiagramNodeTypes } from '@borkdominik-biguml/uml-glsp-server';
 import { type ActionHandler, type Command, type MaybePromise, OperationHandler } from '@eclipse-glsp/server';
 import { streamAst } from 'langium';
 import { inject, injectable } from 'inversify';
 import { URI } from 'vscode-uri';
 import {
     CreateClassifierInstanceOperation,
+    CreateInstanceLinkOperation,
     InstanceExplorerDataResponse,
     RequestInstanceExplorerDataAction,
     UpdateInstanceLinkEndOperation,
     UpdateInstanceSlotValuesOperation,
+    type AvailableAssociation,
+    type AvailableClassifier,
+    type AvailableForInstantiation,
+    type AvailableInstanceLink,
     type ClassifierGroup,
     type ClassifierType,
     type DiagnosticSummary,
@@ -67,6 +74,15 @@ interface InstanceMeta {
     hierarchy: Set<string>;
 }
 
+interface LinkCounts {
+    /** assocId -> instanceId -> # of links where the instance is on the source end */
+    sources: Map<string, Map<string, number>>;
+    /** assocId -> instanceId -> # of links where the instance is on the target end */
+    targets: Map<string, Map<string, number>>;
+    /** assocId -> set of "sourceInstanceId|targetInstanceId" pairs already linked */
+    pairs: Map<string, Set<string>>;
+}
+
 const INSTANCE_HEADER_HEIGHT = 34;
 const INSTANCE_SLOT_ROW_HEIGHT = 22;
 const INSTANCE_MIN_WIDTH = 170;
@@ -86,7 +102,7 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
     execute(_action: RequestInstanceExplorerDataAction): MaybePromise<any[]> {
         const classifiersById = this.collectClassifiers();
         const instances = this.collectInstances(classifiersById);
-        const { linksByInstance, manyToManyRelations } = this.routeInstanceLinks(instances);
+        const { linksByInstance, manyToManyRelations, usedAssociationIds, linkCounts } = this.routeInstanceLinks(instances);
         const classifierGroups = new Map<string, ClassifierGroup>();
         const unclassified: InstanceSummary[] = [];
 
@@ -97,6 +113,7 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
 
             const summary = this.summarizeInstance(node, classifiersById);
             summary.links = (linksByInstance.get(node.__id) ?? []).sort(compareLinks);
+            summary.availableLinks = this.computeAvailableLinksForInstance(node, instances, linkCounts);
             if (summary.classifierId) {
                 const info = classifiersById.get(summary.classifierId)!;
                 let group = classifierGroups.get(summary.classifierId);
@@ -105,6 +122,7 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
                         classifierId: info.classifier.__id,
                         classifierName: info.classifier.name,
                         classifierType: info.classifierType,
+                        isInstantiable: isInstantiableClassifier(info.classifier),
                         instances: []
                     };
                     classifierGroups.set(summary.classifierId, group);
@@ -122,31 +140,216 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
             }))
             .sort((left, right) => left.classifierName.localeCompare(right.classifierName));
 
+        const availableForInstantiation = this.computeAvailableForInstantiation(
+            classifiersById,
+            classifierGroups,
+            instances,
+            usedAssociationIds
+        );
+
         return [
             InstanceExplorerDataResponse.create({
                 classifierGroups: groups,
                 unclassified: unclassified.sort(compareInstances),
-                manyToManyRelations: manyToManyRelations.sort((l, r) => l.name.localeCompare(r.name))
+                manyToManyRelations: manyToManyRelations.sort((l, r) => l.name.localeCompare(r.name)),
+                availableForInstantiation
             })
         ];
+    }
+
+    protected computeAvailableLinksForInstance(
+        instance: InstanceSpecification,
+        instances: InstanceMeta[],
+        linkCounts: LinkCounts
+    ): AvailableInstanceLink[] {
+        const myMeta = instances.find(m => m.node.__id === instance.__id);
+        if (!myMeta) {
+            return [];
+        }
+
+        const result: AvailableInstanceLink[] = [];
+        const seen = new Set<string>(); // dedupe entries per `${assocId}|${end}`
+
+        for (const node of streamAst(this.modelState.semanticRoot)) {
+            if (!isAssociation(node)) continue;
+
+            const sourceMany = isManyMultiplicity(node.sourceMultiplicity);
+            const targetMany = isManyMultiplicity(node.targetMultiplicity);
+            if (sourceMany && targetMany) {
+                continue; // many-to-many associations handled in the dedicated section
+            }
+
+            const sourceTypeId = isSupportedClassifier(node.source?.ref) ? node.source.ref.__id : undefined;
+            const targetTypeId = isSupportedClassifier(node.target?.ref) ? node.target.ref.__id : undefined;
+            if (!sourceTypeId || !targetTypeId) continue;
+
+            // Instance can be on the source side
+            if (myMeta.hierarchy.has(sourceTypeId)) {
+                const entry = this.buildAvailableLinkEntry(node, 'source', myMeta, instances, linkCounts, sourceTypeId, targetTypeId);
+                if (entry) {
+                    const key = `${entry.associationId}|${entry.end}`;
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        result.push(entry);
+                    }
+                }
+            }
+            // ... and/or on the target side (e.g., self-associations or overlapping hierarchies)
+            if (myMeta.hierarchy.has(targetTypeId)) {
+                const entry = this.buildAvailableLinkEntry(node, 'target', myMeta, instances, linkCounts, sourceTypeId, targetTypeId);
+                if (entry) {
+                    const key = `${entry.associationId}|${entry.end}`;
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        result.push(entry);
+                    }
+                }
+            }
+        }
+
+        result.sort((l, r) => l.associationName.localeCompare(r.associationName));
+        return result;
+    }
+
+    protected buildAvailableLinkEntry(
+        association: Association,
+        end: 'source' | 'target',
+        instance: InstanceMeta,
+        allInstances: InstanceMeta[],
+        linkCounts: LinkCounts,
+        sourceTypeId: string,
+        targetTypeId: string
+    ): AvailableInstanceLink | undefined {
+        // My side's cap on peers is the OTHER end's multiplicity upper bound.
+        const myPeerCap =
+            end === 'source' ? multiplicityMax(association.targetMultiplicity) : multiplicityMax(association.sourceMultiplicity);
+        // Each peer's cap is THIS end's multiplicity upper bound.
+        const peerCap =
+            end === 'source' ? multiplicityMax(association.sourceMultiplicity) : multiplicityMax(association.targetMultiplicity);
+        const peerTypeId = end === 'source' ? targetTypeId : sourceTypeId;
+
+        const myEndBucket = end === 'source' ? linkCounts.sources : linkCounts.targets;
+        const peerEndBucket = end === 'source' ? linkCounts.targets : linkCounts.sources;
+
+        const myCount = myEndBucket.get(association.__id)?.get(instance.node.__id) ?? 0;
+        if (myPeerCap !== undefined && myCount >= myPeerCap) {
+            return undefined; // already at the limit on this end
+        }
+
+        const existingPairs = linkCounts.pairs.get(association.__id);
+
+        const eligiblePeers: EligibleInstance[] = [];
+        for (const peer of allInstances) {
+            if (peer.node.__id === instance.node.__id) continue; // skip self-link
+            if (!peer.hierarchy.has(peerTypeId)) continue;
+
+            const peerCount = peerEndBucket.get(association.__id)?.get(peer.node.__id) ?? 0;
+            if (peerCap !== undefined && peerCount >= peerCap) continue;
+
+            const pairKey =
+                end === 'source' ? `${instance.node.__id}|${peer.node.__id}` : `${peer.node.__id}|${instance.node.__id}`;
+            if (existingPairs?.has(pairKey)) continue; // already linked to this peer via this association
+
+            eligiblePeers.push({
+                id: peer.node.__id,
+                name: peer.node.name,
+                classifierName: peer.classifier?.name
+            });
+        }
+
+        if (eligiblePeers.length === 0) {
+            return undefined;
+        }
+
+        eligiblePeers.sort((l, r) => l.name.localeCompare(r.name));
+
+        return {
+            associationId: association.__id,
+            associationName: association.name || association.__id,
+            end,
+            direction: end === 'source' ? 'outgoing' : 'incoming',
+            eligiblePeers
+        };
+    }
+
+    protected computeAvailableForInstantiation(
+        classifiersById: Map<string, ClassifierInfo>,
+        usedClassifierGroups: Map<string, ClassifierGroup>,
+        instances: InstanceMeta[],
+        usedAssociationIds: Set<string>
+    ): AvailableForInstantiation {
+        const availableClassifiers: AvailableClassifier[] = [];
+        for (const info of classifiersById.values()) {
+            if (usedClassifierGroups.has(info.classifier.__id)) {
+                continue;
+            }
+            if (!isInstantiableClassifier(info.classifier)) {
+                continue;
+            }
+            availableClassifiers.push({
+                classifierId: info.classifier.__id,
+                classifierName: info.classifier.name,
+                classifierType: info.classifierType
+            });
+        }
+        availableClassifiers.sort((l, r) => l.classifierName.localeCompare(r.classifierName));
+
+        const availableAssociations: AvailableAssociation[] = [];
+        for (const node of streamAst(this.modelState.semanticRoot)) {
+            if (!isAssociation(node)) continue;
+            if (usedAssociationIds.has(node.__id)) continue;
+
+            const { eligibleSources, eligibleTargets } = computeAssociationEligibility(node, instances);
+            availableAssociations.push({
+                associationId: node.__id,
+                associationName: node.name || node.__id,
+                relationType: node.$type,
+                eligibleSources,
+                eligibleTargets
+            });
+        }
+        availableAssociations.sort((l, r) => l.associationName.localeCompare(r.associationName));
+
+        return {
+            classifiers: availableClassifiers,
+            associations: availableAssociations
+        };
     }
 
     protected routeInstanceLinks(instances: InstanceMeta[]): {
         linksByInstance: Map<string, InstanceLinkSummary[]>;
         manyToManyRelations: ManyToManyRelationSection[];
+        usedAssociationIds: Set<string>;
+        linkCounts: LinkCounts;
     } {
         const linksByInstance = new Map<string, InstanceLinkSummary[]>();
         const m2mByAssociation = new Map<string, ManyToManyRelationSection>();
-        const eligibilityCache = new Map<string, { sources: EligibleInstance[]; targets: EligibleInstance[] }>();
+        const usedAssociationIds = new Set<string>();
+        const eligibilityCache = new Map<string, { eligibleSources: EligibleInstance[]; eligibleTargets: EligibleInstance[] }>();
+        const linkCounts: LinkCounts = { sources: new Map(), targets: new Map(), pairs: new Map() };
 
-        const getEligibility = (associationId: string, sourceTypeId: string | undefined, targetTypeId: string | undefined) => {
-            let cached = eligibilityCache.get(associationId);
+        const incrementCount = (bucket: Map<string, Map<string, number>>, assocId: string, instanceId: string) => {
+            let inner = bucket.get(assocId);
+            if (!inner) {
+                inner = new Map();
+                bucket.set(assocId, inner);
+            }
+            inner.set(instanceId, (inner.get(instanceId) ?? 0) + 1);
+        };
+        const recordPair = (assocId: string, sourceId: string, targetId: string) => {
+            let set = linkCounts.pairs.get(assocId);
+            if (!set) {
+                set = new Set();
+                linkCounts.pairs.set(assocId, set);
+            }
+            set.add(`${sourceId}|${targetId}`);
+        };
+
+        const getEligibility = (association: Association) => {
+            let cached = eligibilityCache.get(association.__id);
             if (!cached) {
-                cached = {
-                    sources: computeEligibleInstances(instances, sourceTypeId),
-                    targets: computeEligibleInstances(instances, targetTypeId)
-                };
-                eligibilityCache.set(associationId, cached);
+                cached = computeAssociationEligibility(association, instances);
+                eligibilityCache.set(association.__id, cached);
             }
             return cached;
         };
@@ -161,19 +364,23 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
                 continue;
             }
 
+            usedAssociationIds.add(association.__id);
+            incrementCount(linkCounts.sources, association.__id, sourceInst.__id);
+            incrementCount(linkCounts.targets, association.__id, targetInst.__id);
+            recordPair(association.__id, sourceInst.__id, targetInst.__id);
             const sourceMany = isManyMultiplicity(association.sourceMultiplicity);
             const targetMany = isManyMultiplicity(association.targetMultiplicity);
             const relationName = node.name || association.name || association.__id;
-            const sourceTypeId = isSupportedClassifier(association.source?.ref) ? association.source.ref.__id : undefined;
-            const targetTypeId = isSupportedClassifier(association.target?.ref) ? association.target.ref.__id : undefined;
-            const { sources: eligibleSources, targets: eligibleTargets } = getEligibility(association.__id, sourceTypeId, targetTypeId);
+            const { eligibleSources, eligibleTargets } = getEligibility(association);
 
             if (sourceMany && targetMany) {
                 const section = m2mByAssociation.get(association.__id) ?? {
                     id: association.__id,
                     name: association.name || relationName,
                     relationType: association.$type,
-                    links: [] as ManyToManyLink[]
+                    links: [] as ManyToManyLink[],
+                    eligibleSources,
+                    eligibleTargets
                 };
                 section.links.push({
                     id: node.__id,
@@ -190,34 +397,28 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
                 continue;
             }
 
-            // 1-1 or 1-N: show on the side where the OTHER end is single
-            const showOnSource = !targetMany;
-            const showOnTarget = !sourceMany;
-
-            if (showOnSource) {
-                addLink(linksByInstance, sourceInst.__id, {
-                    id: node.__id,
-                    relationName,
-                    direction: 'outgoing',
-                    peerInstanceId: targetInst.__id,
-                    peerInstanceName: targetInst.name,
-                    peerClassifierName: classifierNameOf(targetInst),
-                    peerEnd: 'target',
-                    eligiblePeers: eligibleTargets
-                });
-            }
-            if (showOnTarget) {
-                addLink(linksByInstance, targetInst.__id, {
-                    id: node.__id,
-                    relationName,
-                    direction: 'incoming',
-                    peerInstanceId: sourceInst.__id,
-                    peerInstanceName: sourceInst.name,
-                    peerClassifierName: classifierNameOf(sourceInst),
-                    peerEnd: 'source',
-                    eligiblePeers: eligibleSources
-                });
-            }
+            // 1-1 and 1-N: show on BOTH ends so users see the link from either instance's perspective
+            // (m2m has its own dedicated section and is handled above).
+            addLink(linksByInstance, sourceInst.__id, {
+                id: node.__id,
+                relationName,
+                direction: 'outgoing',
+                peerInstanceId: targetInst.__id,
+                peerInstanceName: targetInst.name,
+                peerClassifierName: classifierNameOf(targetInst),
+                peerEnd: 'target',
+                eligiblePeers: eligibleTargets
+            });
+            addLink(linksByInstance, targetInst.__id, {
+                id: node.__id,
+                relationName,
+                direction: 'incoming',
+                peerInstanceId: sourceInst.__id,
+                peerInstanceName: sourceInst.name,
+                peerClassifierName: classifierNameOf(sourceInst),
+                peerEnd: 'source',
+                eligiblePeers: eligibleSources
+            });
         }
 
         for (const section of m2mByAssociation.values()) {
@@ -227,7 +428,12 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
             });
         }
 
-        return { linksByInstance, manyToManyRelations: Array.from(m2mByAssociation.values()) };
+        return {
+            linksByInstance,
+            manyToManyRelations: Array.from(m2mByAssociation.values()),
+            usedAssociationIds,
+            linkCounts
+        };
     }
 
     protected collectInstances(classifiersById: Map<string, ClassifierInfo>): InstanceMeta[] {
@@ -308,6 +514,7 @@ export class RequestInstanceExplorerDataActionHandler implements ActionHandler {
             classifierName: resolvedClassifier?.classifier.name,
             slots: slotSummaries.sort((left, right) => left.featureName.localeCompare(right.featureName)),
             links: [],
+            availableLinks: [],
             diagnostics
         };
     }
@@ -366,7 +573,7 @@ export class CreateClassifierInstanceOperationHandler extends OperationHandler {
 
     override createCommand(operation: CreateClassifierInstanceOperation): Command | undefined {
         const classifier = this.modelState.index.findIdElement(operation.classifierId);
-        if (!isSupportedClassifier(classifier)) {
+        if (!isInstantiableClassifier(classifier)) {
             return undefined;
         }
 
@@ -503,6 +710,59 @@ export class UpdateInstanceLinkEndOperationHandler extends OperationHandler {
     }
 }
 
+@injectable()
+export class CreateInstanceLinkOperationHandler extends OperationHandler {
+    override operationType = CreateInstanceLinkOperation.KIND;
+
+    declare readonly modelState: DiagramModelState;
+
+    override createCommand(operation: CreateInstanceLinkOperation): Command | undefined {
+        const association = this.modelState.index.findIdElement(operation.associationId);
+        const source = this.modelState.index.findSemanticElement(operation.sourceInstanceId, isInstanceSpecification);
+        const target = this.modelState.index.findSemanticElement(operation.targetInstanceId, isInstanceSpecification);
+        if (!isAssociation(association) || !source || !target) {
+            return undefined;
+        }
+
+        const id = createRandomUUID();
+        const linkValue: SerializedRecordNode = {
+            $type: 'InstanceLink',
+            __id: id,
+            name: association.name || `${source.name}-${target.name}-link`,
+            association: {
+                ref: { __id: association.__id, __documentUri: association.$document?.uri },
+                $refText: association.name ?? association.__id
+            },
+            source: {
+                ref: { __id: source.__id, __documentUri: source.$document?.uri },
+                $refText: source.name
+            },
+            target: {
+                ref: { __id: target.__id, __documentUri: target.$document?.uri },
+                $refText: target.name
+            },
+            relationType: 'INSTANCE_LINK'
+        };
+
+        for (const { property, defaultValue } of getDefaultProperties(ClassDiagramEdgeTypes.INSTANCE_LINK)) {
+            if (linkValue[property] === undefined) {
+                linkValue[property] = defaultValue;
+            }
+        }
+
+        return new ModelPatchCommand(
+            this.modelState,
+            JSON.stringify([
+                {
+                    op: 'add',
+                    path: '/diagram/relations/-',
+                    value: linkValue
+                }
+            ])
+        );
+    }
+}
+
 function classifierTypeOf(classifier: SupportedClassifier): ClassifierType {
     if (isInterface(classifier)) {
         return 'Interface';
@@ -515,6 +775,16 @@ function classifierTypeOf(classifier: SupportedClassifier): ClassifierType {
 
 function isSupportedClassifier(value: unknown): value is SupportedClassifier {
     return isClass(value) || isInterface(value) || isDataType(value);
+}
+
+function isInstantiableClassifier(value: unknown): value is SupportedClassifier {
+    // Abstract classes (either via the dedicated AbstractClass AST type, or a regular Class with isAbstract: true)
+    // and interfaces cannot have instances.
+    if (!isSupportedClassifier(value)) return false;
+    if (isInterface(value)) return false;
+    if (isAbstractClass(value)) return false;
+    if (isClass(value) && (value as Class).isAbstract === true) return false;
+    return true;
 }
 
 function owningClassifier(property: Property): SupportedClassifier | undefined {
@@ -574,6 +844,27 @@ function multiplicityDiagnosticFor(property: Property, valueCount: number): Diag
     return undefined;
 }
 
+function multiplicityMax(multiplicity: string | undefined): number | undefined {
+    if (!multiplicity) return 1;
+    const trimmed = multiplicity.trim().toLowerCase();
+    if (trimmed === '' || trimmed === 'one' || trimmed === '1' || trimmed === '0..1' || trimmed === '1..1') {
+        return 1;
+    }
+    if (trimmed === '*' || trimmed === 'many' || trimmed === 'n') {
+        return undefined; // unlimited
+    }
+    if (/^\d+$/.test(trimmed)) {
+        return Number(trimmed);
+    }
+    const match = trimmed.match(/^(\d+)\.\.(\d+|\*|n)$/);
+    if (match) {
+        const upper = match[2];
+        if (upper === '*' || upper === 'n') return undefined;
+        return Number(upper);
+    }
+    return 1;
+}
+
 function parseMultiplicity(multiplicity: string): { min: number; max?: number } | undefined {
     if (multiplicity === '*') {
         return { min: 0 };
@@ -630,6 +921,18 @@ function computeEligibleInstances(instances: InstanceMeta[], classifierId: strin
             classifierName: meta.classifier?.name
         }))
         .sort((l, r) => l.name.localeCompare(r.name));
+}
+
+function computeAssociationEligibility(
+    association: Association,
+    instances: InstanceMeta[]
+): { eligibleSources: EligibleInstance[]; eligibleTargets: EligibleInstance[] } {
+    const sourceTypeId = isSupportedClassifier(association.source?.ref) ? association.source.ref.__id : undefined;
+    const targetTypeId = isSupportedClassifier(association.target?.ref) ? association.target.ref.__id : undefined;
+    return {
+        eligibleSources: computeEligibleInstances(instances, sourceTypeId),
+        eligibleTargets: computeEligibleInstances(instances, targetTypeId)
+    };
 }
 
 function isManyMultiplicity(value: string | undefined): boolean {

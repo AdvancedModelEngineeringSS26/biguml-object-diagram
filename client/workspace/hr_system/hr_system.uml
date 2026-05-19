@@ -1563,6 +1563,8 @@
 				"__type": "Association",
 				"__id": "has-addr-assoc",
 				"name": "hasAddress",
+				"sourceMultiplicity": "*",
+				"targetMultiplicity": "one",
 				"sourceAggregation": "NONE",
 				"targetAggregation": "NONE",
 				"visibility": "PUBLIC",
