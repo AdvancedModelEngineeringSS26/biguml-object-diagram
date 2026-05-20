@@ -44,14 +44,14 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "templates"
   ],
   "scripts": {
-    "build": "npm run clean && npm run compile && npm run bundle && npm run lint && npm run copy",
+    "build": "npm run clean && npm run compile && npm run bundle && npm run lint",
     "bundle": "tsx esbuild.ts",
     "clean": "rimraf build dist node_modules/.tmp",
     "compile": "tsc -b",
-    "copy": "npx cpx \"./templates/*\" ../../application/vscode/templates -v",
     "lint": "eslint -c ./eslint.config.js",
     "lint:fix": "npm run lint -- --fix",
     "tsc": "tsc",

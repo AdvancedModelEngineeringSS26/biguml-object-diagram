@@ -11,8 +11,8 @@ import { TYPES, type ActionDispatcher, type ActionListener, type OnActivate, typ
 import { DisposableCollection } from '@eclipse-glsp/protocol';
 import { inject, injectable } from 'inversify';
 import { existsSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import { basename, dirname, extname, join } from 'node:path';
+import { createRequire } from 'node:module';
 import * as vscode from 'vscode';
 import {
     AvailableExportTemplatesResponse,
@@ -49,7 +49,7 @@ export class InstanceExportService implements OnActivate, OnDispose {
                     AvailableExportTemplatesResponse.create({
                         responseId: message.action.requestId,
                         templates: await this.listTemplates(),
-                        workspaceTemplateDirectory: this.getWorkspaceTemplateDirectory()
+                        workspaceTemplateDirectory: null
                     })
             ),
             this.actionListener.handleVSCodeRequest<RequestSaveExportedInstancesAction>(
@@ -105,19 +105,9 @@ export class InstanceExportService implements OnActivate, OnDispose {
     protected async listTemplates(): Promise<ExportTemplateSummary[]> {
         const sources = [
             {
-                directory: this.resolveInstalledTemplateDirectory(),
-                kind: 'builtin' as const,
-                descriptionPrefix: 'Template from templates'
-            },
-            {
                 directory: this.resolvePackageTemplateDirectory(),
                 kind: 'builtin' as const,
                 descriptionPrefix: `Template from ${join('packages', 'big-instance-explorer', 'templates')}`
-            },
-            {
-                directory: this.getWorkspaceTemplateDirectory(),
-                kind: 'workspace' as const,
-                descriptionPrefix: `Workspace template from ${join('.biguml', 'templates')}`
             }
         ];
 
@@ -164,31 +154,30 @@ export class InstanceExportService implements OnActivate, OnDispose {
         }
     }
 
-    protected resolveInstalledTemplateDirectory(): string | null {
-        const templateDirectory = this.extensionContext.asAbsolutePath('templates');
-        return existsSync(templateDirectory) ? templateDirectory : null;
-    }
-
-    protected getWorkspaceTemplateDirectory(): string | null {
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-        if (!workspaceFolder) {
-            return null;
-        }
-
-        return join(workspaceFolder.uri.fsPath, '.biguml', 'templates');
-    }
 
     protected resolvePackageTemplateDirectory(): string | null {
-        try {
-            const require = createRequire(import.meta.url);
-            const packageJsonPath = require.resolve('@borkdominik-biguml/big-instance-explorer/package.json');
-            const packageRoot = dirname(packageJsonPath);
-            const templatesDir = join(packageRoot, 'templates');
-            return existsSync(templatesDir) ? templatesDir : null;
-        } catch {
-            return null;
+        // Load templates only from the package-local export templates folder.
+        const require = createRequire(__filename);
+        const packageEntry = require.resolve('@borkdominik-biguml/big-instance-explorer');
+
+        let currentDir = dirname(packageEntry);
+        for (let i = 0; i < 6; i++) {
+            const templatesPath = join(currentDir, 'templates');
+            if (existsSync(templatesPath)) {
+                return templatesPath;
+            }
+
+            const parentDir = dirname(currentDir);
+            if (parentDir === currentDir) {
+                break;
+            }
+
+            currentDir = parentDir;
         }
+
+        return null;
     }
+
 
     protected async selectExportTarget(suggestedFileName: string): Promise<vscode.Uri | undefined> {
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];

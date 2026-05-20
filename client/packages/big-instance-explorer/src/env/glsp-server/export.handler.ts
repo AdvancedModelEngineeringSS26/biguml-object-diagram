@@ -13,8 +13,7 @@ import {
     isDataType,
     isInstanceLink,
     isInstanceSpecification,
-    isInterface,
-    type InstanceSpecification
+    isInterface
 } from '@borkdominik-biguml/uml-model-server/grammar';
 import { type ActionHandler, type MaybePromise } from '@eclipse-glsp/server';
 import { Eta } from 'eta';
@@ -200,11 +199,25 @@ export class ExportInstancesActionHandler implements ActionHandler {
 
     protected resolvePackageTemplatePath(fileName: string): string | null {
         try {
-            const require = createRequire(import.meta.url);
-            const packageJsonPath = require.resolve('@borkdominik-biguml/big-instance-explorer/package.json');
-            const packageRoot = dirname(packageJsonPath);
-            const templatePath = join(packageRoot, 'templates', fileName);
-            return existsSync(templatePath) ? templatePath : null;
+            const require = createRequire(__filename);
+            const packageEntry = require.resolve('@borkdominik-biguml/big-instance-explorer');
+
+            let currentDir = dirname(packageEntry);
+            for (let i = 0; i < 6; i++) {
+                const templatePath = join(currentDir, 'templates', fileName);
+                if (existsSync(templatePath)) {
+                    return templatePath;
+                }
+
+                const parentDir = dirname(currentDir);
+                if (parentDir === currentDir) {
+                    break;
+                }
+
+                currentDir = parentDir;
+            }
+
+            return null;
         } catch {
             return null;
         }

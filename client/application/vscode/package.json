@@ -43,6 +43,7 @@
     "build",
     "server",
     "webviews",
+    "templates",
     "resources",
     "LICENSE",
     "README.md"
