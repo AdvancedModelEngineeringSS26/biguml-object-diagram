@@ -11,6 +11,7 @@ import { DiagramFeatureModule } from '@borkdominik-biguml/uml-glsp-server/vscode
 import type { ActionHandlerConstructor, InstanceMultiBinding, OperationHandlerConstructor } from '@eclipse-glsp/server';
 import {
     CreateClassifierInstanceOperationHandler,
+    CreateInstanceLinkOperationHandler,
     RequestInstanceExplorerDataActionHandler,
     UpdateInstanceLinkEndOperationHandler,
     UpdateInstanceSlotValuesOperationHandler
@@ -27,6 +28,7 @@ class InstanceExplorerDiagramFeatureModule extends DiagramFeatureModule {
         binding.add(CreateClassifierInstanceOperationHandler);
         binding.add(UpdateInstanceSlotValuesOperationHandler);
         binding.add(UpdateInstanceLinkEndOperationHandler);
+        binding.add(CreateInstanceLinkOperationHandler);
     }
 }
 
