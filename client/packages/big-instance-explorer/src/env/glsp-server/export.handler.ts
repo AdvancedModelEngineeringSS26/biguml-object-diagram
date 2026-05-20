@@ -198,6 +198,16 @@ export class ExportInstancesActionHandler implements ActionHandler {
     }
 
     protected resolvePackageTemplatePath(fileName: string): string | null {
+        const bundledTemplatePathCandidates = [
+            join(dirname(__filename), 'templates', 'instance-export', fileName),
+            join(dirname(__filename), '..', 'templates', 'instance-export', fileName)
+        ];
+        for (const bundledTemplatePath of bundledTemplatePathCandidates) {
+            if (existsSync(bundledTemplatePath)) {
+                return bundledTemplatePath;
+            }
+        }
+
         try {
             const require = createRequire(__filename);
             const packageEntry = require.resolve('@borkdominik-biguml/big-instance-explorer');

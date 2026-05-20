@@ -45,12 +45,14 @@ export class InstanceExportService implements OnActivate, OnDispose {
         this.toDispose.push(
             this.actionListener.handleVSCodeRequest<RequestAvailableExportTemplatesAction>(
                 RequestAvailableExportTemplatesAction.KIND,
-                async message =>
-                    AvailableExportTemplatesResponse.create({
+                async message => {
+                    const workspaceTemplateDirectory = this.resolveWorkspaceTemplateDirectory();
+                    return AvailableExportTemplatesResponse.create({
                         responseId: message.action.requestId,
                         templates: await this.listTemplates(),
-                        workspaceTemplateDirectory: null
-                    })
+                        workspaceTemplateDirectory
+                    });
+                }
             ),
             this.actionListener.handleVSCodeRequest<RequestSaveExportedInstancesAction>(
                 RequestSaveExportedInstancesAction.KIND,
@@ -119,17 +121,47 @@ export class InstanceExportService implements OnActivate, OnDispose {
             }
 
             for (const template of await this.readTemplatesFromDirectory(source.directory, source.kind, source.descriptionPrefix)) {
-                templates.set(`${template.kind}:${template.name}`, template);
+                // Workspace templates override built-ins with the same name.
+                templates.set(template.name, template);
             }
         }
 
-        return Array.from(templates.values()).sort((left, right) => {
-            if (left.kind !== right.kind) {
-                return left.kind.localeCompare(right.kind);
+        for (const workspaceFolder of vscode.workspace.workspaceFolders ?? []) {
+            const workspaceTemplateUri = vscode.Uri.joinPath(workspaceFolder.uri, '.biguml', 'templates');
+            const workspaceTemplates = await this.readTemplatesFromUri(
+                workspaceTemplateUri,
+                'workspace',
+                `Template from ${join('.biguml', 'templates')}`
+            );
+            for (const template of workspaceTemplates) {
+                // Workspace templates override built-ins with the same name.
+                templates.set(template.name, template);
             }
+        }
 
-            return left.label.localeCompare(right.label);
-        });
+        return Array.from(templates.values()).sort((left, right) => left.label.localeCompare(right.label));
+    }
+
+    protected async readTemplatesFromUri(
+        directoryUri: vscode.Uri,
+        kind: ExportTemplateSummary['kind'],
+        descriptionPrefix: string
+    ): Promise<ExportTemplateSummary[]> {
+        try {
+            const entries = await vscode.workspace.fs.readDirectory(directoryUri);
+            return entries
+                .filter(([name, type]) => type === vscode.FileType.File && name.toLowerCase().endsWith('.eta'))
+                .map(([name]) => ({
+                    name: basename(name, '.eta'),
+                    label: basename(name, '.eta'),
+                    kind,
+                    extension: this.inferExtensionFromTemplate(name),
+                    description: `${descriptionPrefix}/${name}.`,
+                    file: vscode.Uri.joinPath(directoryUri, name).fsPath
+                }));
+        } catch {
+            return [];
+        }
     }
 
     protected async readTemplatesFromDirectory(
@@ -156,27 +188,53 @@ export class InstanceExportService implements OnActivate, OnDispose {
 
 
     protected resolvePackageTemplateDirectory(): string | null {
-        // Load templates only from the package-local export templates folder.
-        const require = createRequire(__filename);
-        const packageEntry = require.resolve('@borkdominik-biguml/big-instance-explorer');
-
-        let currentDir = dirname(packageEntry);
-        for (let i = 0; i < 6; i++) {
-            const templatesPath = join(currentDir, 'templates');
-            if (existsSync(templatesPath)) {
-                return templatesPath;
+        const bundledTemplatesPathCandidates = [
+            join(dirname(__filename), 'templates', 'instance-export'),
+            join(dirname(__filename), '..', 'templates', 'instance-export')
+        ];
+        for (const bundledTemplatesPath of bundledTemplatesPathCandidates) {
+            if (existsSync(bundledTemplatesPath)) {
+                return bundledTemplatesPath;
             }
+        }
 
-            const parentDir = dirname(currentDir);
-            if (parentDir === currentDir) {
-                break;
+        try {
+            // Load templates only from the package-local export templates folder.
+            const require = createRequire(__filename);
+            const packageEntry = require.resolve('@borkdominik-biguml/big-instance-explorer');
+
+            let currentDir = dirname(packageEntry);
+            for (let i = 0; i < 6; i++) {
+                const templatesPath = join(currentDir, 'templates');
+                if (existsSync(templatesPath)) {
+                    return templatesPath;
+                }
+
+                const parentDir = dirname(currentDir);
+                if (parentDir === currentDir) {
+                    break;
+                }
+
+                currentDir = parentDir;
             }
-
-            currentDir = parentDir;
+        } catch {
+            return null;
         }
 
         return null;
     }
+
+    protected resolveWorkspaceTemplateDirectory(): string | null {
+        for (const workspaceFolder of vscode.workspace.workspaceFolders ?? []) {
+            const templateDirectory = join(workspaceFolder.uri.fsPath, '.biguml', 'templates');
+            if (existsSync(templateDirectory)) {
+                return templateDirectory;
+            }
+        }
+
+        return null;
+    }
+
 
 
     protected async selectExportTarget(suggestedFileName: string): Promise<vscode.Uri | undefined> {
