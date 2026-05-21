@@ -19,6 +19,7 @@ Task-oriented how-tos for common development scenarios.
 | Guide                                                                | Topic                                                          |
 | -------------------------------------------------------------------- | -------------------------------------------------------------- |
 | [Command Registration](guides/command-registration.md)               | How to register VSCode commands via DI                         |
+| [Export Template Reference](guides/export-template-reference.md)      | Available Eta variables and custom template locations          |
 | [Webview Registration](guides/webview-registration.md)               | How to register webviews, messaging, and bundling              |
 | [GLSP Server Feature Modules](guides/glsp-server-feature-modules.md) | How feature packages extend the GLSP server                    |
 | [Code Generation Pipeline](guides/property-palette-generator.md)     | Code generation pipeline using the property palette as example |

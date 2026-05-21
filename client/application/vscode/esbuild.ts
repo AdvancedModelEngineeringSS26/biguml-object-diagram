@@ -37,6 +37,10 @@ const extensionConfig: es.BuildOptions = {
                 {
                     from: '../../node_modules/@vscode/codicons/dist/*',
                     to: 'webviews/assets'
+                },
+                {
+                    from: '../../packages/big-instance-explorer/templates/*',
+                    to: 'build/templates/instance-export'
                 }
             ]
         })

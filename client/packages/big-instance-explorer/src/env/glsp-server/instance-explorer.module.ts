@@ -16,10 +16,12 @@ import {
     UpdateInstanceLinkEndOperationHandler,
     UpdateInstanceSlotValuesOperationHandler
 } from './instance-explorer.handler.js';
+import { ExportInstancesActionHandler } from './export.handler.js';
 
 class InstanceExplorerDiagramFeatureModule extends DiagramFeatureModule {
     override configureActionHandlers(binding: InstanceMultiBinding<ActionHandlerConstructor>): void {
         binding.add(RequestInstanceExplorerDataActionHandler);
+        binding.add(ExportInstancesActionHandler);
     }
 
     override configureOperationHandlers(binding: InstanceMultiBinding<OperationHandlerConstructor>): void {
