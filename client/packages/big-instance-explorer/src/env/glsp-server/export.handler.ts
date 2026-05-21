@@ -17,11 +17,11 @@ import {
 } from '@borkdominik-biguml/uml-model-server/grammar';
 import { type ActionHandler, type MaybePromise } from '@eclipse-glsp/server';
 import { Eta } from 'eta';
+import { inject, injectable } from 'inversify';
+import { streamAst } from 'langium';
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { basename, dirname, join } from 'node:path';
-import { injectable, inject } from 'inversify';
-import { streamAst } from 'langium';
 import { ExportInstancesResponse, RequestExportInstancesAction, type ExportScope } from '../common/index.js';
 
 interface ExportInstance {
@@ -79,7 +79,8 @@ export class ExportInstancesActionHandler implements ActionHandler {
             }
 
             const selectedInstanceIds = new Set(selectedInstances.map(instance => instance.id));
-            const context: ExportContext = {
+            const templateName = action.action.templateName || 'unknown';
+            let context: ExportContext = {
                 instances: selectedInstances.map(instance => ({
                     id: instance.id,
                     name: instance.name,
@@ -100,7 +101,11 @@ export class ExportInstancesActionHandler implements ActionHandler {
                 timestamp: new Date().toISOString()
             };
 
-            const templatePath = this.resolveTemplatePath(action.action.templateName || 'json', action.action.customTemplateFile);
+            if (!action.action.customTemplateFile) {
+                context = this.escapeContextForFormat(context, templateName);
+            }
+
+            const templatePath = this.resolveTemplatePath(templateName, action.action.customTemplateFile);
             const templateString = readFileSync(templatePath, { encoding: 'utf8' });
             const rendered = new Eta({ autoEscape: false }).renderString(templateString, context) ?? '';
 
@@ -231,5 +236,121 @@ export class ExportInstancesActionHandler implements ActionHandler {
         } catch {
             return null;
         }
+    }
+
+    protected escapeContextForFormat(context: ExportContext, format: string): ExportContext {
+        switch (format) {
+            case 'json':
+                return this.escapeContextForJson(context);
+            case 'csv':
+                return this.escapeContextForCsv(context);
+            case 'xml':
+                return this.escapeContextForXml(context);
+            default:
+                return context;
+        }
+    }
+
+    protected escapeContextForJson(context: ExportContext): ExportContext {
+        return {
+            ...context,
+            instances: context.instances.map(inst => ({
+                ...inst,
+                name: this.escapeJson(inst.name),
+                classifierName: this.escapeJson(inst.classifierName),
+                slots: inst.slots.map(slot => ({
+                    ...slot,
+                    featureName: this.escapeJson(slot.featureName),
+                    value: this.escapeJson(slot.value),
+                    values: slot.values.map(v => this.escapeJson(v))
+                }))
+            })),
+            classifiers: context.classifiers.map(clf => ({
+                ...clf,
+                name: this.escapeJson(clf.name)
+            })),
+            links: context.links.map(link => ({
+                ...link,
+                relationName: link.relationName ? this.escapeJson(link.relationName) : link.relationName
+            })),
+            diagramName: this.escapeJson(context.diagramName)
+        };
+    }
+
+    protected escapeContextForCsv(context: ExportContext): ExportContext {
+        return {
+            ...context,
+            instances: context.instances.map(inst => ({
+                ...inst,
+                name: this.escapeCsv(inst.name),
+                classifierName: this.escapeCsv(inst.classifierName),
+                slots: inst.slots.map(slot => ({
+                    ...slot,
+                    featureName: this.escapeCsv(slot.featureName),
+                    value: this.escapeCsv(slot.value),
+                    values: slot.values.map(v => this.escapeCsv(v))
+                }))
+            })),
+            classifiers: context.classifiers.map(clf => ({
+                ...clf,
+                name: this.escapeCsv(clf.name)
+            })),
+            links: context.links.map(link => ({
+                ...link,
+                relationName: link.relationName ? this.escapeCsv(link.relationName) : link.relationName
+            })),
+            diagramName: this.escapeCsv(context.diagramName)
+        };
+    }
+
+    protected escapeContextForXml(context: ExportContext): ExportContext {
+        return {
+            ...context,
+            instances: context.instances.map(inst => ({
+                ...inst,
+                name: this.escapeXml(inst.name),
+                classifierName: this.escapeXml(inst.classifierName),
+                slots: inst.slots.map(slot => ({
+                    ...slot,
+                    featureName: this.escapeXml(slot.featureName),
+                    value: this.escapeXml(slot.value),
+                    values: slot.values.map(v => this.escapeXml(v))
+                }))
+            })),
+            classifiers: context.classifiers.map(clf => ({
+                ...clf,
+                name: this.escapeXml(clf.name)
+            })),
+            links: context.links.map(link => ({
+                ...link,
+                relationName: link.relationName ? this.escapeXml(link.relationName) : link.relationName
+            })),
+            diagramName: this.escapeXml(context.diagramName)
+        };
+    }
+
+    protected escapeJson(value: string): string {
+        return value
+            .replace(/\\/g, '\\\\')
+            .replace(/"/g, '\\"')
+            .replace(/\n/g, '\\n')
+            .replace(/\r/g, '\\r')
+            .replace(/\t/g, '\\t');
+    }
+
+    protected escapeCsv(value: string): string {
+        if (value.includes(',') || value.includes('"') || value.includes('\n') || value.includes('\r')) {
+            return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+    }
+
+    protected escapeXml(value: string): string {
+        return value
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&apos;');
     }
 }
