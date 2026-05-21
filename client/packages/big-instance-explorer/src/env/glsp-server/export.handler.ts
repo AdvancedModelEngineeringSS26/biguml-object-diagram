@@ -24,11 +24,11 @@ import { createRequire } from 'node:module';
 import { basename, dirname, extname, join } from 'node:path';
 import {
     AvailableExportTemplatesResponse,
-    type ExportTemplateSummary,
     ExportInstancesResponse,
     RequestAvailableExportTemplatesAction,
     RequestExportInstancesAction,
-    type ExportScope
+    type ExportScope,
+    type ExportTemplateSummary
 } from '../common/index.js';
 
 interface ExportInstance {
@@ -263,7 +263,7 @@ export class ExportInstancesActionHandler implements ActionHandler {
                     name: basename(entry.name, '.eta'),
                     label: basename(entry.name, '.eta'),
                     kind,
-                    extension: this.inferExtensionFromTemplate(entry.name),
+                    extension: this.inferExtensionFromTemplate(entry.name, kind),
                     description: `${descriptionPrefix}/${entry.name}.`,
                     file: join(directory, entry.name)
                 }));
@@ -308,10 +308,18 @@ export class ExportInstancesActionHandler implements ActionHandler {
         }
     }
 
-    protected inferExtensionFromTemplate(templateFileName: string): string {
+    protected inferExtensionFromTemplate(templateFileName: string, kind: ExportTemplateSummary['kind']): string {
         const withoutEta = basename(templateFileName, '.eta');
         const nestedExtension = extname(withoutEta);
-        return nestedExtension ? nestedExtension.slice(1) : 'txt';
+        if (nestedExtension) {
+            return nestedExtension.slice(1);
+        }
+
+        if (kind === 'builtin') {
+            return withoutEta;
+        }
+
+        return 'txt';
     }
 
     protected escapeContextForFormat(context: ExportContext, format: string): ExportContext {
