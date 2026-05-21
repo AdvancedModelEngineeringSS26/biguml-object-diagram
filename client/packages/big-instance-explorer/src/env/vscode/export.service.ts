@@ -7,28 +7,23 @@
  * SPDX-License-Identifier: MIT
  **********************************************************************************/
 
-import { TYPES, type ActionDispatcher, type ActionListener, type OnActivate, type OnDispose, type SelectionService } from '@borkdominik-biguml/big-vscode/vscode';
+import { TYPES, type ActionListener, type OnActivate, type OnDispose, type SelectionService } from '@borkdominik-biguml/big-vscode/vscode';
 import { DisposableCollection } from '@eclipse-glsp/protocol';
 import { inject, injectable } from 'inversify';
 import { existsSync } from 'node:fs';
-import { basename, dirname, extname, join } from 'node:path';
 import { createRequire } from 'node:module';
+import { basename, dirname, extname, join } from 'node:path';
 import * as vscode from 'vscode';
+import type { ExportTemplateSummary } from '../common/index.js';
 import {
     AvailableExportTemplatesResponse,
     RequestAvailableExportTemplatesAction,
     RequestSaveExportedInstancesAction,
     SaveExportedInstancesResponse
 } from '../common/index.js';
-import type { ExportTemplateSummary } from '../common/index.js';
 
 @injectable()
 export class InstanceExportService implements OnActivate, OnDispose {
-    @inject(TYPES.ExtensionContext)
-    protected readonly extensionContext: vscode.ExtensionContext;
-
-    @inject(TYPES.ActionDispatcher)
-    protected readonly actionDispatcher: ActionDispatcher;
 
     @inject(TYPES.ActionListener)
     protected readonly actionListener: ActionListener;
@@ -121,7 +116,6 @@ export class InstanceExportService implements OnActivate, OnDispose {
             }
 
             for (const template of await this.readTemplatesFromDirectory(source.directory, source.kind, source.descriptionPrefix)) {
-                // Workspace templates override built-ins with the same name.
                 templates.set(template.name, template);
             }
         }
@@ -134,7 +128,6 @@ export class InstanceExportService implements OnActivate, OnDispose {
                 `Template from ${join('.biguml', 'templates')}`
             );
             for (const template of workspaceTemplates) {
-                // Workspace templates override built-ins with the same name.
                 templates.set(template.name, template);
             }
         }
@@ -199,7 +192,6 @@ export class InstanceExportService implements OnActivate, OnDispose {
         }
 
         try {
-            // Load templates only from the package-local export templates folder.
             const require = createRequire(__filename);
             const packageEntry = require.resolve('@borkdominik-biguml/big-instance-explorer');
 
