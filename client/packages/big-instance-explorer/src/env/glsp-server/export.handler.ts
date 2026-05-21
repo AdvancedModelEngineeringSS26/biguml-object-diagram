@@ -19,10 +19,17 @@ import { type ActionHandler, type MaybePromise } from '@eclipse-glsp/server';
 import { Eta } from 'eta';
 import { inject, injectable } from 'inversify';
 import { streamAst } from 'langium';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { basename, dirname, join } from 'node:path';
-import { ExportInstancesResponse, RequestExportInstancesAction, type ExportScope } from '../common/index.js';
+import { basename, dirname, extname, join } from 'node:path';
+import {
+    AvailableExportTemplatesResponse,
+    type ExportTemplateSummary,
+    ExportInstancesResponse,
+    RequestAvailableExportTemplatesAction,
+    RequestExportInstancesAction,
+    type ExportScope
+} from '../common/index.js';
 
 interface ExportInstance {
     id: string;
@@ -54,12 +61,22 @@ interface ExportContext {
 
 @injectable()
 export class ExportInstancesActionHandler implements ActionHandler {
-    actionKinds = [RequestExportInstancesAction.KIND];
+    actionKinds = [RequestExportInstancesAction.KIND, RequestAvailableExportTemplatesAction.KIND];
 
     @inject(DiagramModelState)
     protected readonly modelState: DiagramModelState;
 
-    execute(action: RequestExportInstancesAction): MaybePromise<any[]> {
+    execute(action: RequestExportInstancesAction | RequestAvailableExportTemplatesAction): MaybePromise<any[]> {
+        if (RequestAvailableExportTemplatesAction.is(action)) {
+            return [
+                AvailableExportTemplatesResponse.create({
+                    responseId: action.requestId,
+                    templates: this.listAvailableTemplates(action.workspaceTemplateDirectory),
+                    workspaceTemplateDirectory: action.workspaceTemplateDirectory ?? null
+                })
+            ];
+        }
+
         try {
             const scope: ExportScope = action.action.scope;
             const classifiers = this.collectClassifiers();
@@ -194,22 +211,75 @@ export class ExportInstancesActionHandler implements ActionHandler {
         }
 
         const fileName = `${templateName}.eta`;
-        const templatePath = this.resolvePackageTemplatePath(fileName);
+        const templateDirectory = this.resolvePackageTemplateDirectory();
+        const templatePath = templateDirectory ? join(templateDirectory, fileName) : null;
         if (!templatePath) {
+            throw new Error(`Template "${templateName}" could not be found.`);
+        }
+        if (!existsSync(templatePath)) {
             throw new Error(`Template "${templateName}" could not be found.`);
         }
 
         return templatePath;
     }
 
-    protected resolvePackageTemplatePath(fileName: string): string | null {
+    protected listAvailableTemplates(workspaceTemplateDirectory?: string | null): ExportTemplateSummary[] {
+        const templates = new Map<string, ExportTemplateSummary>();
+
+        const builtinTemplateDirectory = this.resolvePackageTemplateDirectory();
+        if (builtinTemplateDirectory) {
+            for (const template of this.readTemplatesFromDirectory(
+                builtinTemplateDirectory,
+                'builtin',
+                `Template from ${join('packages', 'big-instance-explorer', 'templates')}`
+            )) {
+                templates.set(template.name, template);
+            }
+        }
+
+        if (workspaceTemplateDirectory && existsSync(workspaceTemplateDirectory)) {
+            for (const template of this.readTemplatesFromDirectory(
+                workspaceTemplateDirectory,
+                'workspace',
+                `Template from ${join('.biguml', 'templates')}`
+            )) {
+                templates.set(template.name, template);
+            }
+        }
+
+        return Array.from(templates.values()).sort((left, right) => left.label.localeCompare(right.label));
+    }
+
+    protected readTemplatesFromDirectory(
+        directory: string,
+        kind: ExportTemplateSummary['kind'],
+        descriptionPrefix: string
+    ): ExportTemplateSummary[] {
+        try {
+            const entries = readdirSync(directory, { withFileTypes: true });
+            return entries
+                .filter(entry => entry.isFile() && entry.name.toLowerCase().endsWith('.eta'))
+                .map(entry => ({
+                    name: basename(entry.name, '.eta'),
+                    label: basename(entry.name, '.eta'),
+                    kind,
+                    extension: this.inferExtensionFromTemplate(entry.name),
+                    description: `${descriptionPrefix}/${entry.name}.`,
+                    file: join(directory, entry.name)
+                }));
+        } catch {
+            return [];
+        }
+    }
+
+    protected resolvePackageTemplateDirectory(): string | null {
         const bundledTemplatePathCandidates = [
-            join(dirname(__filename), 'templates', 'instance-export', fileName),
-            join(dirname(__filename), '..', 'templates', 'instance-export', fileName)
+            join(dirname(__filename), 'templates', 'instance-export'),
+            join(dirname(__filename), '..', 'templates', 'instance-export')
         ];
-        for (const bundledTemplatePath of bundledTemplatePathCandidates) {
-            if (existsSync(bundledTemplatePath)) {
-                return bundledTemplatePath;
+        for (const bundledTemplateDirectory of bundledTemplatePathCandidates) {
+            if (existsSync(bundledTemplateDirectory)) {
+                return bundledTemplateDirectory;
             }
         }
 
@@ -219,9 +289,9 @@ export class ExportInstancesActionHandler implements ActionHandler {
 
             let currentDir = dirname(packageEntry);
             for (let i = 0; i < 6; i++) {
-                const templatePath = join(currentDir, 'templates', fileName);
-                if (existsSync(templatePath)) {
-                    return templatePath;
+                const templateDirectory = join(currentDir, 'templates');
+                if (existsSync(templateDirectory)) {
+                    return templateDirectory;
                 }
 
                 const parentDir = dirname(currentDir);
@@ -236,6 +306,12 @@ export class ExportInstancesActionHandler implements ActionHandler {
         } catch {
             return null;
         }
+    }
+
+    protected inferExtensionFromTemplate(templateFileName: string): string {
+        const withoutEta = basename(templateFileName, '.eta');
+        const nestedExtension = extname(withoutEta);
+        return nestedExtension ? nestedExtension.slice(1) : 'txt';
     }
 
     protected escapeContextForFormat(context: ExportContext, format: string): ExportContext {

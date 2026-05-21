@@ -26,6 +26,7 @@ export interface ExportTemplateSummary {
 
 export interface RequestAvailableExportTemplatesAction extends RequestAction<AvailableExportTemplatesResponse> {
     kind: typeof RequestAvailableExportTemplatesAction.KIND;
+    workspaceTemplateDirectory?: string | null;
 }
 
 export namespace RequestAvailableExportTemplatesAction {
@@ -35,10 +36,11 @@ export namespace RequestAvailableExportTemplatesAction {
         return RequestAction.hasKind(object, KIND);
     }
 
-    export function create(options: { requestId?: string } = {}): RequestAvailableExportTemplatesAction {
+    export function create(options: { requestId?: string; workspaceTemplateDirectory?: string | null } = {}): RequestAvailableExportTemplatesAction {
         return {
             kind: KIND,
-            requestId: options.requestId ?? ''
+            requestId: options.requestId ?? '',
+            workspaceTemplateDirectory: options.workspaceTemplateDirectory ?? null
         };
     }
 }

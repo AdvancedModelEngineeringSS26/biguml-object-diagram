@@ -111,7 +111,8 @@ export class InstanceExplorerWebviewViewProvider extends WebviewViewProvider {
         });
     }
 
-    protected openExportDialog(): void {
+    protected async openExportDialog(): Promise<void> {
+        this.actionMessenger.dispatch(await this.exportService.getAvailableTemplates());
         this.webviewMessenger.sendNotification(ExportInstancesNotification.OpenDialog, {
             source: 'command'
         });

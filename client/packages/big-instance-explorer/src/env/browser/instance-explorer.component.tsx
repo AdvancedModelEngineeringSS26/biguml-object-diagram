@@ -18,7 +18,6 @@ import {
     ExportInstancesNotification,
     ExportInstancesResponse,
     InstanceExplorerDataResponse,
-    RequestAvailableExportTemplatesAction,
     RequestExportInstancesAction,
     RequestSaveExportedInstancesAction,
     SaveExportedInstancesResponse,
@@ -125,12 +124,11 @@ export function InstanceExplorer(): ReactElement {
         listenNotification(ExportInstancesNotification.OpenDialog, () => {
             setIsExportDialogOpen(true);
             setExportStatusMessage(undefined);
-            dispatchAction(RequestAvailableExportTemplatesAction.create());
         });
         listenNotification(ExportInstancesNotification.SelectionChanged, params => {
             setSelectedDiagramInstanceIds(params?.selectedElementIds ?? []);
         });
-    }, [dispatchAction, listenNotification]);
+    }, [listenNotification]);
 
     useEffect(() => {
         setExpandedGroups(current => {
