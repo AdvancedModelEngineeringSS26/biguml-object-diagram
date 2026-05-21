@@ -14,9 +14,9 @@ import { useContext, useEffect, useState, type ChangeEvent, type KeyboardEvent, 
 import {
     AvailableExportTemplatesResponse,
     CreateClassifierInstanceOperation,
+    CreateInstanceLinkOperation,
     ExportInstancesNotification,
     ExportInstancesResponse,
-    CreateInstanceLinkOperation,
     InstanceExplorerDataResponse,
     RequestAvailableExportTemplatesAction,
     RequestExportInstancesAction,
@@ -30,8 +30,8 @@ import {
     type ClassifierGroup,
     type ClassifierType,
     type DiagnosticSummary,
-    type ExportTemplateSummary,
     type EligibleInstance,
+    type ExportTemplateSummary,
     type InstanceLinkSummary,
     type InstanceSummary,
     type ManyToManyRelationSection,
@@ -417,17 +417,17 @@ export function InstanceExplorer(): ReactElement {
 
         if (clientId) {
             if (current.kind === 'slot') {
-            dispatchAction(
-                UpdateInstanceSlotValuesOperation.create({
+                dispatchAction(
+                    UpdateInstanceSlotValuesOperation.create({
                         slotId: current.targetId,
-                    values: parseValues(current.value)
-                })
-            );
+                        values: parseValues(current.value)
+                    })
+                );
             } else {
                 const trimmed = current.value.trim();
                 if (trimmed.length > 0) {
                     dispatchAction(UpdateOperation.create(current.targetId, 'name', trimmed));
-        }
+                }
             }
         }
 
@@ -493,9 +493,8 @@ export function InstanceExplorer(): ReactElement {
         return (
             <div key={instance.id} className='instance-explorer__instance'>
                 <button
-                    className={`instance-explorer__row instance-explorer__row--instance${
-                        isSelected ? ' instance-explorer__row--selected' : ''
-                    }`}
+                    className={`instance-explorer__row instance-explorer__row--instance${isSelected ? ' instance-explorer__row--selected' : ''
+                        }`}
                     onClick={() => selectInstance(instance.id)}
                     type='button'
                 >
@@ -659,21 +658,21 @@ export function InstanceExplorer(): ReactElement {
                                 }}
                             />
                         ) : (
-                        <span
-                            className='instance-explorer__label'
-                            onClick={event => {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                navigateTo(group.classifierId);
-                            }}
+                            <span
+                                className='instance-explorer__label'
+                                onClick={event => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    navigateTo(group.classifierId);
+                                }}
                                 onDoubleClick={event => {
                                     event.preventDefault();
                                     event.stopPropagation();
                                     setEditState({ kind: 'classifier', targetId: group.classifierId, value: group.classifierName });
                                 }}
-                        >
-                            {group.classifierName}
-                        </span>
+                            >
+                                {group.classifierName}
+                            </span>
                         )}
                     </button>
                     <span className='instance-explorer__count'>{group.instances.length}</span>
@@ -807,9 +806,8 @@ export function InstanceExplorer(): ReactElement {
                         type='button'
                     >
                         <span
-                            className={`codicon ${
-                                expanded ? 'codicon-chevron-down' : 'codicon-chevron-right'
-                            } instance-explorer__disclosure`}
+                            className={`codicon ${expanded ? 'codicon-chevron-down' : 'codicon-chevron-right'
+                                } instance-explorer__disclosure`}
                         />
                         <span className='codicon codicon-lightbulb instance-explorer__icon' />
                         <span className='instance-explorer__label'>Available to instantiate</span>
@@ -872,22 +870,6 @@ export function InstanceExplorer(): ReactElement {
     return (
         <div className='instance-explorer' onKeyDown={handleRootKeyDown}>
             <header className='instance-explorer__header'>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start' }}>
-                    <div>
-                        <div className='instance-explorer__title'>Model Instance Explorer</div>
-                        <div className='instance-explorer__subtitle'>{totalInstances} instance(s) in the current diagram</div>
-                    </div>
-                    <button
-                        onClick={() => {
-                            setIsExportDialogOpen(true);
-                            setExportStatusMessage(undefined);
-                            dispatchAction(RequestAvailableExportTemplatesAction.create());
-                        }}
-                        type='button'
-                    >
-                        Export
-                    </button>
-                </div>
                 <div className='instance-explorer__subtitle'>{totalInstances} instance(s) in the current diagram</div>
                 <input
                     className='instance-explorer__input'
@@ -912,9 +894,8 @@ export function InstanceExplorer(): ReactElement {
                                 type='button'
                             >
                                 <span
-                                    className={`codicon ${
-                                        expandedGroups.unclassified ? 'codicon-chevron-down' : 'codicon-chevron-right'
-                                    } instance-explorer__disclosure`}
+                                    className={`codicon ${expandedGroups.unclassified ? 'codicon-chevron-down' : 'codicon-chevron-right'
+                                        } instance-explorer__disclosure`}
                                 />
                                 <span className='codicon codicon-question instance-explorer__icon' />
                                 <span className='instance-explorer__label'>Unclassified</span>
