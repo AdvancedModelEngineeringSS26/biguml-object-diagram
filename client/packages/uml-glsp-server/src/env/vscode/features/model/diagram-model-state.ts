@@ -108,6 +108,7 @@ export class DiagramModelState extends DefaultModelState implements JsonModelSta
             const message = ex instanceof Error ? ex.message : String(ex);
 
             this.actionDispatcher.dispatch(MessageAction.create(message, { severity: 'ERROR' as SeverityLevel }));
+            throw ex;
         }
     }
 
