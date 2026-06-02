@@ -328,6 +328,12 @@
           "name": "Timeline",
           "type": "webview",
           "when": "bigUML.isRunning"
+        },
+        {
+          "id": "bigUML.panel.object-to-class", 
+          "name": "Object to Class Preview",
+          "type": "webview",
+          "when" : "bigUML.isRunning"
         }
       ]
     },
@@ -358,6 +364,7 @@
     "@borkdominik-biguml/uml-glsp-client": "*",
     "@borkdominik-biguml/uml-glsp-server": "*",
     "@borkdominik-biguml/uml-model-server": "*",
+    "@borkdominik-biguml/big-object-to-class": "*",
     "@eclipse-glsp/protocol": "*",
     "@eclipse-glsp/vscode-integration": "*",
     "@vscode/codicons": "^0.0.25",
