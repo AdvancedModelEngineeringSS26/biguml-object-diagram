@@ -13,6 +13,7 @@ import { instanceExplorerModule } from '@borkdominik-biguml/big-instance-explore
 import { minimapModule } from '@borkdominik-biguml/big-minimap/glsp-client';
 import { outlineModule } from '@borkdominik-biguml/big-outline/glsp-client';
 import { propertyPaletteModule } from '@borkdominik-biguml/big-property-palette/glsp-client';
+import { transformationModule } from '@borkdominik-biguml/big-object-to-class/glsp-client';
 import { SemanticModelResponseAction } from '@borkdominik-biguml/uml-glsp-server';
 import {
     type ContainerConfiguration,
@@ -48,7 +49,8 @@ class UmlStarter extends GLSPStarter {
             instanceExplorerModule,
             propertyPaletteModule,
             codeGenerationModule,
-            advancedSearchModule
+            advancedSearchModule,
+            transformationModule
         );
 
         return container;

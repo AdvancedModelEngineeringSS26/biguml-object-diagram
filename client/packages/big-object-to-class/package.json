@@ -1,0 +1,70 @@
+{
+  "name": "@borkdominik-biguml/big-object-to-class",
+  "version": "0.6.4",
+  "description": "Object-to-Class Diagram Transformation",
+  "homepage": "https://github.com/borkdominik/bigUML",
+  "bugs": "https://github.com/borkdominik/bigUML/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/borkdominik/bigUML.git"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "Business Informatics Group (TU Wien)"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./build/env/common/index.d.ts",
+      "default": "./build/env/common/index.js"
+    },
+    "./vscode": {
+      "types": "./build/env/vscode/index.d.ts",
+      "default": "./build/env/vscode/index.js"
+    },
+    "./glsp-server": {
+      "types": "./build/env/glsp-server/index.d.ts",
+      "default": "./build/env/glsp-server/index.js"
+    },
+    "./glsp-client": {
+      "types": "./build/env/glsp-client/index.d.ts",
+      "default": "./build/env/glsp-client/index.js"
+    },
+    "./browser": {
+      "types": "./build/env/browser/index.d.ts",
+      "default": "./build/env/browser/index.js"
+    }
+  },
+  "scripts": {
+    "build": "npm run clean && npm run compile && npm run bundle && npm run lint",
+    "bundle": "tsx esbuild.ts",
+    "clean": "rimraf build dist node_modules/.tmp",
+    "compile": "tsc -b",
+    "lint": "echo \"(no lint configured)\"",
+    "watch": "concurrently --kill-others 'npm run watch:compile' 'npm run watch:bundle'",
+    "watch:bundle": "npm run bundle -- --watch",
+    "watch:compile": "npm run compile -- --watch --preserveWatchOutput"
+  },
+  "dependencies": {
+    "@borkdominik-biguml/big-vscode": "*",
+    "@eclipse-glsp/protocol": "*",
+    "@borkdominik-biguml/big-components": "*",
+    "@borkdominik-biguml/big-common": "*",
+    "uuid": "*",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "peerDependencies": {
+    "inversify": "^6.2.1",
+    "@eclipse-glsp/server": "*",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.75.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "tsx": "^4.0.0",
+    "concurrently": "^8.0.0"
+  }
+}
