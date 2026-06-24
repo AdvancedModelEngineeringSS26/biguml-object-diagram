@@ -17,8 +17,11 @@ import {
     CreateInstanceLinkOperation,
     ExportInstancesNotification,
     ExportInstancesResponse,
+    GenerateInstancesOperation,
+    GenerateInstancesPreviewResponse,
     InstanceExplorerDataResponse,
     RequestExportInstancesAction,
+    RequestGenerateInstancesPreviewAction,
     RequestSaveExportedInstancesAction,
     SaveExportedInstancesResponse,
     UpdateInstanceLinkEndOperation,
@@ -31,12 +34,15 @@ import {
     type DiagnosticSummary,
     type EligibleInstance,
     type ExportTemplateSummary,
+    type GenerationConfig,
+    type GenerationResultSummary,
     type InstanceLinkSummary,
     type InstanceSummary,
     type ManyToManyRelationSection,
     type SlotSummary
 } from '../common/index.js';
 import { ExportDialog } from './export-dialog.component.js';
+import { GenerateDialog, type GenerateDialogClassifier } from './generate-dialog.component.js';
 
 type EditTarget = 'slot' | 'instance' | 'classifier';
 
@@ -86,6 +92,8 @@ export function InstanceExplorer(): ReactElement {
     const [isSavingExport, setIsSavingExport] = useState(false);
     const [createLinkState, setCreateLinkState] = useState<CreateLinkState | undefined>();
     const [selectedInstanceId, setSelectedInstanceId] = useState<string | undefined>();
+    const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
+    const [generatePreview, setGeneratePreview] = useState<GenerationResultSummary | undefined>();
 
     useEffect(() => {
         listenAction(action => {
@@ -107,6 +115,11 @@ export function InstanceExplorer(): ReactElement {
                 if (SaveExportedInstancesResponse.is(action)) {
                     setIsSavingExport(false);
                     setExportStatusMessage(action.success ? `Export saved to ${action.filePath}.` : action.message ?? 'Could not save export.');
+                    return;
+                }
+
+                if (GenerateInstancesPreviewResponse.is(action)) {
+                    setGeneratePreview(action.summary);
                     return;
                 }
 
@@ -865,6 +878,27 @@ export function InstanceExplorer(): ReactElement {
     const showEmptyState =
         filteredGroups.length === 0 && filteredUnclassified.length === 0 && filteredManyToMany.length === 0 && !hasAvailable;
 
+    // All instantiable classifiers (Class/DataType), whether or not they already have instances.
+    const generatableClassifiers: GenerateDialogClassifier[] = (() => {
+        const byId = new Map<string, GenerateDialogClassifier>();
+        for (const group of classifierGroups) {
+            if (group.isInstantiable) {
+                byId.set(group.classifierId, { classifierId: group.classifierId, classifierName: group.classifierName });
+            }
+        }
+        for (const classifier of availableForInstantiation.classifiers) {
+            if (!byId.has(classifier.classifierId)) {
+                byId.set(classifier.classifierId, { classifierId: classifier.classifierId, classifierName: classifier.classifierName });
+            }
+        }
+        return Array.from(byId.values()).sort((left, right) => left.classifierName.localeCompare(right.classifierName));
+    })();
+
+    const openGenerateDialog = () => {
+        setGeneratePreview(undefined);
+        setIsGenerateDialogOpen(true);
+    };
+
     return (
         <div className='instance-explorer' onKeyDown={handleRootKeyDown}>
             <header className='instance-explorer__header'>
@@ -876,7 +910,27 @@ export function InstanceExplorer(): ReactElement {
                     type='search'
                     value={searchText}
                 />
+                <button className='instance-explorer__action' onClick={openGenerateDialog} title='Generate test data' type='button'>
+                    <span className='codicon codicon-sparkle' />
+                    <span>Generate Test Data</span>
+                </button>
             </header>
+
+            {isGenerateDialogOpen ? (
+                <GenerateDialog
+                    classifiers={generatableClassifiers}
+                    onClose={() => setIsGenerateDialogOpen(false)}
+                    onGenerate={(config: GenerationConfig) => {
+                        dispatchAction(GenerateInstancesOperation.create(config));
+                        setIsGenerateDialogOpen(false);
+                        setGeneratePreview(undefined);
+                    }}
+                    onPreview={(config: GenerationConfig) => {
+                        dispatchAction(RequestGenerateInstancesPreviewAction.create({ config }));
+                    }}
+                    preview={generatePreview}
+                />
+            ) : null}
 
             <div className='instance-explorer__tree'>
                 {renderAvailableSection()}

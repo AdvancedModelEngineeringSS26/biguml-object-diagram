@@ -33,11 +33,24 @@ export interface GenerationDiagnosticSummary {
     message: string;
 }
 
+export interface PreviewSlotSample {
+    feature: string;
+    value: string;
+}
+
+export interface PreviewInstanceSample {
+    name: string;
+    classifierName: string;
+    slots: PreviewSlotSample[];
+}
+
 export interface GenerationResultSummary {
     instanceCount: number;
     slotCount: number;
     linkCount: number;
     diagnostics: GenerationDiagnosticSummary[];
+    /** Dry-run sample of the instances that would be created (preview). */
+    sample: PreviewInstanceSample[];
 }
 
 /**
@@ -105,7 +118,7 @@ export namespace GenerateInstancesPreviewResponse {
         return {
             kind: KIND,
             responseId: options?.responseId ?? '',
-            summary: options?.summary ?? { instanceCount: 0, slotCount: 0, linkCount: 0, diagnostics: [] }
+            summary: options?.summary ?? { instanceCount: 0, slotCount: 0, linkCount: 0, diagnostics: [], sample: [] }
         };
     }
 }

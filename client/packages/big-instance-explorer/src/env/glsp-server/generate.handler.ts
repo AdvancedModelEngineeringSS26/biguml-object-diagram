@@ -38,6 +38,7 @@ import {
 } from '../common/generate.action.js';
 import {
     buildGeneration,
+    extractPreviewSample,
     type ClassifierView,
     type GenerationResult,
     type PatchOperation,
@@ -134,7 +135,7 @@ function resolveClassifierView(classifier: InstantiableClassifier, modelState: D
     };
 }
 
-function resolveAssociationViews(modelState: DiagramModelState, selected: ReadonlySet<string>): AssociationView[] {
+function resolveAssociationViews(modelState: DiagramModelState): AssociationView[] {
     const relations = modelState.semanticRoot.diagram.relations ?? [];
     const views: AssociationView[] = [];
     for (const relation of relations) {
@@ -146,9 +147,9 @@ function resolveAssociationViews(modelState: DiagramModelState, selected: Readon
         if (!isInstantiableClassifier(source) || !isInstantiableClassifier(target)) {
             continue;
         }
-        if (!selected.has(source.__id) || !selected.has(target.__id)) {
-            continue;
-        }
+        // No selection filter here: planLinks only creates links between classifiers that
+        // actually have generated instances, so including every association is safe and
+        // avoids dropping links when the user didn't tick both ends.
         const bounds = parseMultiplicity((relation as Association).targetMultiplicity);
         views.push({
             id: relation.__id,
@@ -250,21 +251,27 @@ function run(config: GenerationConfig, modelState: DiagramModelState): RunResult
         classifierId: instance.classifierId,
         documentUri
     }));
-    const links = planLinks(linkable, resolveAssociationViews(modelState, new Set(config.classifierIds)), {
+    const links = planLinks(linkable, resolveAssociationViews(modelState), {
         depth: config.associationDepth,
         seed: config.seed,
+        // When the user asks for links (depth >= 1), guarantee at least one per source so
+        // optional (0..*) associations still produce visible links.
+        minPerSource: config.associationDepth >= 1 ? 1 : 0,
         idFactory: createRandomUUID
     });
 
     return { result, links };
 }
 
+const PREVIEW_SAMPLE_LIMIT = 10;
+
 function summarize({ result, links }: RunResult): GenerationResultSummary {
     return {
         instanceCount: result.instances.length,
         slotCount: result.instances.reduce((sum, instance) => sum + instance.slotCount, 0),
         linkCount: links.links.length,
-        diagnostics: [...result.diagnostics, ...links.diagnostics].map(d => ({ code: d.code, severity: d.severity, message: d.message }))
+        diagnostics: [...result.diagnostics, ...links.diagnostics].map(d => ({ code: d.code, severity: d.severity, message: d.message })),
+        sample: extractPreviewSample(result.patch, PREVIEW_SAMPLE_LIMIT)
     };
 }
 

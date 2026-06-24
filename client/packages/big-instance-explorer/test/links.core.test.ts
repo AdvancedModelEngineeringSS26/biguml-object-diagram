@@ -171,4 +171,29 @@ describe('planLinks', () => {
             }).patch;
         assert.deepEqual(run(), run());
     });
+
+    it('minPerSource forces a link per source for an optional (0..*) association even with a single target', () => {
+        const manyPersons = Array.from({ length: 10 }, (_unused, i) => inst(`p${i}`, `p${i}`, 'P'));
+        const oneAddress = [inst('a1', 'a1', 'Addr')];
+        const result = planLinks([...manyPersons, ...oneAddress], [assoc({ targetLowerBound: 0, targetUpperBound: undefined })], {
+            depth: 1,
+            seed: 1,
+            minPerSource: 1,
+            idFactory: counter()
+        });
+        const bySource = linksBySource(result);
+        for (const p of manyPersons) {
+            assert.equal(bySource.get(p.id)?.length ?? 0, 1, `expected exactly 1 link for ${p.id}`);
+        }
+    });
+
+    it('minPerSource never exceeds the upper bound', () => {
+        const result = planLinks([...persons, ...addresses], [assoc({ targetLowerBound: 0, targetUpperBound: 0 })], {
+            depth: 1,
+            seed: 1,
+            minPerSource: 1,
+            idFactory: counter()
+        });
+        assert.equal(result.patch.length, 0);
+    });
 });

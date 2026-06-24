@@ -8,7 +8,7 @@
  **********************************************************************************/
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { buildGeneration, type ClassifierView, type PropertyView } from '../src/env/glsp-server/generate.core.js';
+import { buildGeneration, extractPreviewSample, type ClassifierView, type PropertyView } from '../src/env/glsp-server/generate.core.js';
 import { PatternStrategy } from '../src/env/glsp-server/strategies/pattern.strategy.js';
 import { RandomStrategy } from '../src/env/glsp-server/strategies/random.strategy.js';
 import { type ValueStrategy } from '../src/env/glsp-server/strategies/strategy.js';
@@ -143,5 +143,29 @@ describe('buildGeneration', () => {
         assert.equal(result.instances.length, 4);
         assert.equal(result.instances.filter(i => i.classifierName === 'Person').length, 2);
         assert.equal(result.instances.filter(i => i.classifierName === 'Address').length, 2);
+    });
+});
+
+describe('extractPreviewSample', () => {
+    it('summarizes generated instances into name/classifier/slot values', () => {
+        const person = classifier({ name: 'Person', properties: [pv('name'), pv('age', { typeKind: 'integer' })] });
+        const result = buildGeneration([person], { count: 1, strategy: constStrategy('X'), idFactory: counter() });
+        const sample = extractPreviewSample(result.patch, 10);
+        assert.equal(sample.length, 1);
+        assert.equal(sample[0].classifierName, 'Person');
+        assert.match(sample[0].name, /person_/);
+        assert.deepEqual(
+            sample[0].slots,
+            [
+                { feature: 'name', value: 'X' },
+                { feature: 'age', value: 'X' }
+            ]
+        );
+    });
+
+    it('respects the limit', () => {
+        const person = classifier({ name: 'Person', properties: [pv('name')] });
+        const result = buildGeneration([person], { count: 5, strategy: new RandomStrategy(), seed: 1, idFactory: counter() });
+        assert.equal(extractPreviewSample(result.patch, 2).length, 2);
     });
 });

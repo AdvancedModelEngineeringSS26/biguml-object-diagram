@@ -45,6 +45,13 @@ export interface LinkPlanOptions {
     depth: number;
     /** Seed for reproducible link selection (default 0). */
     seed?: number;
+    /**
+     * Minimum links to create per source, regardless of the association's lower bound
+     * (capped by the upper bound and the number of available targets). Lets "generate
+     * links" (depth >= 1) produce visible links even for optional (`0..*`) associations.
+     * Default 0 (strict multiplicity).
+     */
+    minPerSource?: number;
     /** Id generator; injectable for deterministic tests (default random UUID). */
     idFactory?: () => string;
 }
@@ -127,6 +134,7 @@ export function planLinks(
 
     const rng = createRng(options.seed ?? 0);
     const idFactory = options.idFactory ?? randomUUID;
+    const minPerSource = options.minPerSource ?? 0;
     const byClassifier = groupByClassifier(instances);
 
     for (const association of associations) {
@@ -143,7 +151,9 @@ export function planLinks(
             // A target may be shared across sources, but never link an instance to itself.
             const candidates = targets.filter(target => target.id !== source.id);
             const maxLinks = Math.min(upper, candidates.length);
-            const minLinks = Math.min(lower, candidates.length);
+            // Effective lower honours the association's lower bound and the requested
+            // minimum-per-source, but can never exceed the upper bound / available targets.
+            const minLinks = Math.min(Math.max(lower, minPerSource), maxLinks);
             const count = minLinks >= maxLinks ? maxLinks : rng.int(minLinks, maxLinks);
 
             const chosen = pickDistinct(rng, candidates, count);

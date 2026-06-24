@@ -94,6 +94,50 @@ export interface GenerationResult {
     diagnostics: GenerationDiagnostic[];
 }
 
+/** One generated slot in a preview sample. */
+export interface PreviewSlotSample {
+    feature: string;
+    value: string;
+}
+
+/** One generated instance in a preview sample (dry-run view of what will be created). */
+export interface PreviewInstanceSample {
+    name: string;
+    classifierName: string;
+    slots: PreviewSlotSample[];
+}
+
+/**
+ * Builds a human-readable sample (up to `limit` instances) from a generation patch,
+ * for the dry-run preview. Reads the instance add operations produced by
+ * {@link buildGeneration} without touching the model.
+ */
+export function extractPreviewSample(patch: readonly PatchOperation[], limit: number): PreviewInstanceSample[] {
+    const samples: PreviewInstanceSample[] = [];
+    for (const operation of patch) {
+        if (samples.length >= limit) {
+            break;
+        }
+        if (operation.path !== '/diagram/entities/-') {
+            continue;
+        }
+        const instance = operation.value as {
+            name?: string;
+            classifier?: { $refText?: string };
+            slots?: { name?: string; values?: { value?: string }[] }[];
+        };
+        samples.push({
+            name: instance.name ?? '',
+            classifierName: instance.classifier?.$refText ?? '',
+            slots: (instance.slots ?? []).map(slot => ({
+                feature: slot.name ?? '',
+                value: slot.values?.[0]?.value ?? ''
+            }))
+        });
+    }
+    return samples;
+}
+
 const DEFAULT_UNIQUENESS_RETRIES = 8;
 
 /** Whether a generated string value is compatible with the property's declared type. */
