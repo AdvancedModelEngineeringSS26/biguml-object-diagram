@@ -53,15 +53,20 @@ import { type ValueStrategy } from './strategies/strategy.js';
 
 type InstantiableClassifier = Class | DataType;
 
-// Layout heuristics (mirrors CreateClassifierInstanceOperationHandler).
-const INSTANCE_MIN_WIDTH = 120;
-const INSTANCE_MIN_HEIGHT = 40;
+// Layout heuristics. Generated instances are placed in a non-overlapping grid in
+// empty space below the existing diagram, so they never pile up on each other or on
+// the class diagram and remain individually draggable.
+const INSTANCE_MIN_WIDTH = 160;
+const INSTANCE_MIN_HEIGHT = 50;
 const INSTANCE_HEADER_HEIGHT = 30;
 const INSTANCE_SLOT_ROW_HEIGHT = 18;
 const INSTANCE_NAME_CHAR_WIDTH = 8;
 const INSTANCE_NAME_PADDING = 24;
-const INSTANCE_PLACEMENT_GAP = 60;
-const INSTANCE_FALLBACK_CLASSIFIER_WIDTH = 120;
+const GRID_COLUMNS = 4;
+const GRID_START_X = 40;
+const GRID_COLUMN_SPACING = 60;
+const GRID_ROW_SPACING = 50;
+const GRID_TOP_MARGIN = 160;
 
 function isInstantiableClassifier(node: unknown): node is InstantiableClassifier {
     if (isInterface(node)) {
@@ -226,22 +231,36 @@ function applyDefaults(values: Record<string, unknown>[], elementType: string, s
     }
 }
 
+/** Bottom Y of the existing diagram, so new instances can be placed below it in empty space. */
+function existingDiagramBottom(modelState: DiagramModelState): number {
+    let bottom = 0;
+    for (const metaInfo of (modelState.semanticRoot.metaInfos ?? []) as { y?: unknown }[]) {
+        if (typeof metaInfo.y === 'number') {
+            bottom = Math.max(bottom, metaInfo.y);
+        }
+    }
+    return bottom;
+}
+
 function buildLayoutOps(result: GenerationResult, modelState: DiagramModelState): PatchOperation[] {
     const elementUri = URI.parse(modelState.semanticUri).path;
-    const perClassifier = new Map<string, number>();
     const ops: PatchOperation[] = [];
 
-    for (const instance of result.instances) {
-        const order = perClassifier.get(instance.classifierId) ?? 0;
-        perClassifier.set(instance.classifierId, order + 1);
+    const sizeOf = (slotCount: number): number => Math.max(INSTANCE_MIN_HEIGHT, INSTANCE_HEADER_HEIGHT + slotCount * INSTANCE_SLOT_ROW_HEIGHT);
+    const widthOf = (name: string): number => Math.max(INSTANCE_MIN_WIDTH, name.length * INSTANCE_NAME_CHAR_WIDTH + INSTANCE_NAME_PADDING);
 
-        const classifierPosition = modelState.index.findPosition(instance.classifierId);
-        const classifierSize = modelState.index.findSize(instance.classifierId);
-        const width = Math.max(INSTANCE_MIN_WIDTH, instance.name.length * INSTANCE_NAME_CHAR_WIDTH + INSTANCE_NAME_PADDING);
-        const height = Math.max(INSTANCE_MIN_HEIGHT, INSTANCE_HEADER_HEIGHT + instance.slotCount * INSTANCE_SLOT_ROW_HEIGHT);
-        const baseX = (classifierPosition?.x ?? 0) + (classifierSize?.width ?? INSTANCE_FALLBACK_CLASSIFIER_WIDTH) + INSTANCE_PLACEMENT_GAP;
-        const baseY = classifierPosition?.y ?? 0;
-        const y = baseY + order * (height + INSTANCE_PLACEMENT_GAP / 2);
+    // Uniform grid: column width = widest instance, row height = tallest instance, so nothing overlaps.
+    const columnWidth = Math.max(INSTANCE_MIN_WIDTH, ...result.instances.map(instance => widthOf(instance.name))) + GRID_COLUMN_SPACING;
+    const rowHeight = Math.max(INSTANCE_MIN_HEIGHT, ...result.instances.map(instance => sizeOf(instance.slotCount))) + GRID_ROW_SPACING;
+    const startY = existingDiagramBottom(modelState) + GRID_TOP_MARGIN;
+
+    result.instances.forEach((instance, index) => {
+        const column = index % GRID_COLUMNS;
+        const row = Math.floor(index / GRID_COLUMNS);
+        const x = GRID_START_X + column * columnWidth;
+        const y = startY + row * rowHeight;
+        const width = widthOf(instance.name);
+        const height = sizeOf(instance.slotCount);
 
         ops.push({
             op: 'add',
@@ -251,9 +270,9 @@ function buildLayoutOps(result: GenerationResult, modelState: DiagramModelState)
         ops.push({
             op: 'add',
             path: '/metaInfos/-',
-            value: { $type: 'Position', __id: `pos_${instance.id}`, element: { $ref: { __id: instance.id, __documentUri: elementUri } }, x: baseX, y }
+            value: { $type: 'Position', __id: `pos_${instance.id}`, element: { $ref: { __id: instance.id, __documentUri: elementUri } }, x, y }
         });
-    }
+    });
     return ops;
 }
 

@@ -61,6 +61,9 @@ export class RealisticStrategy implements ValueStrategy {
         if (name.includes('phone') || name.includes('tel')) {
             return faker.phone.number();
         }
+        if (name.includes('department')) {
+            return faker.commerce.department();
+        }
         if (name.includes('city')) {
             return faker.location.city();
         }
@@ -79,11 +82,21 @@ export class RealisticStrategy implements ValueStrategy {
         if (name.includes('year')) {
             return String(faker.date.past().getFullYear());
         }
-        if (name.includes('price') || name.includes('amount') || name.includes('salary') || name.includes('budget') || name.includes('cost')) {
-            return faker.commerce.price();
+        // Numeric semantics inferred from the name (helps untyped attributes look right).
+        if (name.includes('salary') || name.includes('income') || name.includes('wage')) {
+            return String(faker.number.int({ min: 30000, max: 200000 }));
+        }
+        if (name.includes('price') || name.includes('amount') || name.includes('budget') || name.includes('cost') || name.includes('total')) {
+            return String(faker.number.int({ min: 10, max: 100000 }));
+        }
+        if (name.includes('age')) {
+            return String(faker.number.int({ min: 18, max: 80 }));
+        }
+        if (name.includes('size') || name.includes('count') || name.includes('quantity') || name.includes('qty') || name.includes('team') || name.includes('number') || name.includes('rank') || name.includes('level') || name.includes('score')) {
+            return String(faker.number.int({ min: 1, max: 100 }));
         }
         if (name.endsWith('id')) {
-            return faker.string.alphanumeric(8);
+            return `${faker.string.alpha({ length: 3, casing: 'upper' })}${faker.number.int({ min: 100, max: 999 })}`;
         }
 
         // Type-based fallback.
@@ -95,7 +108,7 @@ export class RealisticStrategy implements ValueStrategy {
             case 'string':
             case 'unknown':
             default:
-                return faker.lorem.word();
+                return faker.word.noun();
         }
     }
 }

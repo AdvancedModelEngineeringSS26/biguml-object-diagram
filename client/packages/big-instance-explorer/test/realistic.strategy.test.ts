@@ -55,6 +55,19 @@ describe('RealisticStrategy (Faker-backed)', () => {
         assert.ok(v !== undefined && v.length > 0, `got ${v}`);
     });
 
+    it('generates numeric values for salary/teamSize-style untyped fields', () => {
+        const strategy = new RealisticStrategy(1);
+        const salary = strategy.value(prop('salary', { typeKind: 'unknown' }), ctx());
+        const teamSize = strategy.value(prop('teamSize', { typeKind: 'unknown' }), ctx());
+        assert.ok(salary !== undefined && Number.isFinite(Number(salary)), `salary=${salary}`);
+        assert.ok(teamSize !== undefined && Number.isFinite(Number(teamSize)), `teamSize=${teamSize}`);
+    });
+
+    it('generates a non-empty department name', () => {
+        const v = new RealisticStrategy(1).value(prop('department', { typeKind: 'unknown' }), ctx());
+        assert.ok(v !== undefined && v.trim().length > 0, `got ${v}`);
+    });
+
     it('is deterministic for the same seed', () => {
         const a = new RealisticStrategy(42).value(prop('fullName'), ctx());
         const b = new RealisticStrategy(42).value(prop('fullName'), ctx());
