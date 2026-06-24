@@ -48,6 +48,7 @@ import { planLinks, type AssociationView, type LinkPlanResult, type LinkableInst
 import { parseMultiplicity, resolveTypeKind, type TypeCategory } from './resolve.js';
 import { PatternStrategy } from './strategies/pattern.strategy.js';
 import { RandomStrategy } from './strategies/random.strategy.js';
+import { RealisticStrategy } from './strategies/realistic.strategy.js';
 import { type ValueStrategy } from './strategies/strategy.js';
 
 type InstantiableClassifier = Class | DataType;
@@ -181,6 +182,9 @@ function resolveAssociationViews(modelState: DiagramModelState): AssociationView
 function makeStrategy(config: GenerationConfig): ValueStrategy {
     if (config.strategy === 'pattern') {
         return new PatternStrategy({ patterns: config.patterns ?? {} });
+    }
+    if (config.strategy === 'realistic') {
+        return new RealisticStrategy(config.seed ?? 0);
     }
     return new RandomStrategy();
 }

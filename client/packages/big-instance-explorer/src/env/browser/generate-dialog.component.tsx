@@ -46,7 +46,7 @@ function parsePatterns(text: string): Record<string, string> {
 export function GenerateDialog(props: GenerateDialogProps): ReactElement {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [count, setCount] = useState(3);
-    const [strategy, setStrategy] = useState<GenerationStrategyKind>('random');
+    const [strategy, setStrategy] = useState<GenerationStrategyKind>('realistic');
     const [patternsText, setPatternsText] = useState('');
     const [associationDepth, setAssociationDepth] = useState(1);
     const [seedText, setSeedText] = useState('');
@@ -107,6 +107,7 @@ export function GenerateDialog(props: GenerateDialogProps): ReactElement {
             <label style={fieldStyle}>
                 <span style={labelStyle}>Strategy</span>
                 <select value={strategy} onChange={event => setStrategy(event.target.value as GenerationStrategyKind)}>
+                    <option value='realistic'>Realistic (Faker)</option>
                     <option value='random'>Random (type-driven)</option>
                     <option value='pattern'>Pattern (with random fallback)</option>
                 </select>

@@ -9,7 +9,7 @@
 import { Action, type Operation, RequestAction, type ResponseAction } from '@eclipse-glsp/protocol';
 
 /** Value-generation strategy selector (topic feature 4b/4c). */
-export type GenerationStrategyKind = 'random' | 'pattern';
+export type GenerationStrategyKind = 'random' | 'pattern' | 'realistic';
 
 /** Configuration shared by the generation operation (apply) and its preview. */
 export interface GenerationConfig {
