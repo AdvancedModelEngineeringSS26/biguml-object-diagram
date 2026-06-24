@@ -162,15 +162,19 @@ function isValueCompatible(property: PropertyView, value: string): boolean {
 
 /**
  * Makes a generated value safe to store in a `LiteralSpecification`. The bigUML
- * grammar parses slot values as a `LANGIUM_ID` token (`/[\w*-]+/` — letters,
- * digits, `_`, `*`, `-`), so any other character (space, dot, `@`, comma, quote,
- * apostrophe, newline, …) corrupts the document on parse/serialize. Such runs are
- * replaced with `_` so e.g. "Monica Gutmann" -> "Monica_Gutmann" and
- * "alice.smith@example.com" -> "alice_smith_example_com". This protects every
- * strategy (random/pattern/realistic) and user-typed patterns alike.
+ * grammar parses slot values as a `LANGIUM_ID` token (`/[^\s"{}\[\]:,\\]+/`), so
+ * realistic punctuation (dots, `@`, apostrophes, parentheses, dashes) is kept as-is,
+ * and only the disallowed characters — whitespace, JSON-structural `{ } [ ] : , "`,
+ * and `\` — are replaced with `_`. E.g. "alice.smith@example.com" and "O'Brien" are
+ * preserved, while "Monica Gutmann" -> "Monica_Gutmann" and
+ * "Hirthe, Hirthe and Hirthe" -> "Hirthe_Hirthe_and_Hirthe". Protects every strategy
+ * (random/pattern/realistic) and user-typed patterns alike.
+ *
+ * (Full whitespace/comma support would require an escaped-string grammar terminal —
+ * see planning/feature-4-implementation-report.md.)
  */
 export function sanitizeSlotValue(value: string): string {
-    const safe = value.replace(/[^\w*-]+/g, '_').replace(/^_+|_+$/g, '');
+    const safe = value.replace(/[\s"{}[\]:,\\]+/g, '_').replace(/^_+|_+$/g, '');
     return safe.length > 0 ? safe : 'value';
 }
 
