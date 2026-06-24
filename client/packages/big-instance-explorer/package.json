@@ -54,6 +54,8 @@
     "compile": "tsc -b",
     "lint": "eslint -c ./eslint.config.js",
     "lint:fix": "npm run lint -- --fix",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "test:watch": "node --import tsx --test --watch \"test/**/*.test.ts\"",
     "tsc": "tsc",
     "watch": "concurrently --kill-others 'npm run watch:compile' 'npm run watch:bundle'",
     "watch:bundle": "npm run bundle -- --watch",
