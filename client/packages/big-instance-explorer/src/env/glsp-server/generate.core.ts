@@ -160,6 +160,20 @@ function isValueCompatible(property: PropertyView, value: string): boolean {
     }
 }
 
+/**
+ * Makes a generated value safe to store in a `LiteralSpecification`. The bigUML
+ * grammar parses slot values as a `LANGIUM_ID` token (`/[\w*-]+/` — letters,
+ * digits, `_`, `*`, `-`), so any other character (space, dot, `@`, comma, quote,
+ * apostrophe, newline, …) corrupts the document on parse/serialize. Such runs are
+ * replaced with `_` so e.g. "Monica Gutmann" -> "Monica_Gutmann" and
+ * "alice.smith@example.com" -> "alice_smith_example_com". This protects every
+ * strategy (random/pattern/realistic) and user-typed patterns alike.
+ */
+export function sanitizeSlotValue(value: string): string {
+    const safe = value.replace(/[^\w*-]+/g, '_').replace(/^_+|_+$/g, '');
+    return safe.length > 0 ? safe : 'value';
+}
+
 function buildSlot(property: PropertyView, value: string, idFactory: () => string): Record<string, unknown> {
     return {
         $type: 'Slot',
@@ -174,7 +188,7 @@ function buildSlot(property: PropertyView, value: string, idFactory: () => strin
                 $type: 'LiteralSpecification',
                 __id: idFactory(),
                 name: 'value1',
-                value
+                value: sanitizeSlotValue(value)
             }
         ]
     };

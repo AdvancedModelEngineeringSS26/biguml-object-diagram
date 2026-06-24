@@ -8,7 +8,7 @@
  **********************************************************************************/
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { buildGeneration, extractPreviewSample, type ClassifierView, type PropertyView } from '../src/env/glsp-server/generate.core.js';
+import { buildGeneration, extractPreviewSample, sanitizeSlotValue, type ClassifierView, type PropertyView } from '../src/env/glsp-server/generate.core.js';
 import { PatternStrategy } from '../src/env/glsp-server/strategies/pattern.strategy.js';
 import { RandomStrategy } from '../src/env/glsp-server/strategies/random.strategy.js';
 import { type ValueStrategy } from '../src/env/glsp-server/strategies/strategy.js';
@@ -143,6 +143,47 @@ describe('buildGeneration', () => {
         assert.equal(result.instances.length, 4);
         assert.equal(result.instances.filter(i => i.classifierName === 'Person').length, 2);
         assert.equal(result.instances.filter(i => i.classifierName === 'Address').length, 2);
+    });
+});
+
+describe('sanitizeSlotValue', () => {
+    it('keeps grammar-safe values unchanged', () => {
+        assert.equal(sanitizeSlotValue('AliceSmith'), 'AliceSmith');
+        assert.equal(sanitizeSlotValue('email_1_xk7a'), 'email_1_xk7a');
+        assert.equal(sanitizeSlotValue('E-001'), 'E-001');
+    });
+
+    it('replaces disallowed characters (space, dot, @, comma, apostrophe, quote, parens) with underscore', () => {
+        assert.equal(sanitizeSlotValue('Monica Gutmann'), 'Monica_Gutmann');
+        assert.equal(sanitizeSlotValue('alice.smith@example.com'), 'alice_smith_example_com');
+        assert.equal(sanitizeSlotValue("O'Brien"), 'O_Brien');
+        assert.equal(sanitizeSlotValue('Hirthe, Hirthe and Hirthe'), 'Hirthe_Hirthe_and_Hirthe');
+        assert.equal(sanitizeSlotValue('(555) 123-4567'), '555_123-4567');
+        assert.equal(sanitizeSlotValue('say "hi"'), 'say_hi');
+    });
+
+    it('never yields an empty value', () => {
+        assert.equal(sanitizeSlotValue(''), 'value');
+        assert.equal(sanitizeSlotValue('   '), 'value');
+    });
+
+    it('produces only grammar-safe characters (/^[\\w*-]+$/)', () => {
+        for (const input of ['Monica Gutmann', 'a.b@c,d', "x'y\"z", 'café\nüber']) {
+            assert.match(sanitizeSlotValue(input), /^[\w*-]+$/, `unsafe output for ${JSON.stringify(input)}`);
+        }
+    });
+});
+
+describe('generated slot values are grammar-safe', () => {
+    it('every produced slot value matches /^[\\w*-]+$/ even for unsafe strategy output', () => {
+        const person = classifier({ name: 'Person', properties: [pv('fullName'), pv('email')] });
+        const unsafe: ValueStrategy = { kind: 'unsafe', value: () => 'Monica Gutmann <m@x.io>' };
+        const result = buildGeneration([person], { count: 2, strategy: unsafe, idFactory: counter() });
+        for (const op of instanceOps(result.patch)) {
+            for (const slot of op.slots as AnyRecord[]) {
+                assert.match(slot.values[0].value, /^[\w*-]+$/, `unsafe stored value: ${slot.values[0].value}`);
+            }
+        }
     });
 });
 
