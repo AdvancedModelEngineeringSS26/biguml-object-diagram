@@ -65,8 +65,14 @@ export interface PatchOperation {
 
 export type DiagnosticSeverity = 'info' | 'warning' | 'error';
 
+export type GenerationDiagnosticCode =
+    | 'REQUIRED_PROPERTY_SKIPPED'
+    | 'UNIQUENESS_BEST_EFFORT'
+    | 'TYPE_MISMATCH'
+    | 'MULTIPLICITY_BEST_EFFORT';
+
 export interface GenerationDiagnostic {
-    code: 'REQUIRED_PROPERTY_SKIPPED' | 'UNIQUENESS_BEST_EFFORT' | 'TYPE_MISMATCH';
+    code: GenerationDiagnosticCode;
     message: string;
     severity: DiagnosticSeverity;
     classifierName?: string;
