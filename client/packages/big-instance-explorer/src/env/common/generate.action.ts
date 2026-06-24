@@ -1,0 +1,111 @@
+/**********************************************************************************
+ * Copyright (c) 2026 borkdominik and others.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License which is available at https://opensource.org/licenses/MIT.
+ *
+ * SPDX-License-Identifier: MIT
+ **********************************************************************************/
+import { Action, type Operation, RequestAction, type ResponseAction } from '@eclipse-glsp/protocol';
+
+/** Value-generation strategy selector (topic feature 4b/4c). */
+export type GenerationStrategyKind = 'random' | 'pattern';
+
+/** Configuration shared by the generation operation (apply) and its preview. */
+export interface GenerationConfig {
+    /** Classifiers (by `__id`) to instantiate. */
+    classifierIds: string[];
+    /** How many instances to create per classifier. */
+    countPerClassifier: number;
+    /** Strategy used to fill slot values. */
+    strategy: GenerationStrategyKind;
+    /** Pattern strategy config: property name -> format string (e.g. `User_{n}`). */
+    patterns?: Record<string, string>;
+    /** How deeply to follow associations (0 = no links, >= 1 = direct associations). */
+    associationDepth: number;
+    /** Optional seed for reproducible generation. */
+    seed?: number;
+}
+
+export interface GenerationDiagnosticSummary {
+    code: string;
+    severity: 'info' | 'warning' | 'error';
+    message: string;
+}
+
+export interface GenerationResultSummary {
+    instanceCount: number;
+    slotCount: number;
+    linkCount: number;
+    diagnostics: GenerationDiagnosticSummary[];
+}
+
+/**
+ * Apply operation: creates the generated instances/slots/links as a single
+ * atomic model change (one undo reverts the whole generation).
+ */
+export interface GenerateInstancesOperation extends Operation {
+    kind: typeof GenerateInstancesOperation.KIND;
+    config: GenerationConfig;
+}
+
+export namespace GenerateInstancesOperation {
+    export const KIND = 'generateInstancesOperation';
+
+    export function is(object: unknown): object is GenerateInstancesOperation {
+        return Action.hasKind(object, KIND);
+    }
+
+    export function create(config: GenerationConfig): GenerateInstancesOperation {
+        return {
+            kind: KIND,
+            isOperation: true,
+            config
+        };
+    }
+}
+
+/** Read-only preview: runs generation in-memory and returns counts + diagnostics, without mutating the model. */
+export interface RequestGenerateInstancesPreviewAction extends RequestAction<GenerateInstancesPreviewResponse> {
+    kind: typeof RequestGenerateInstancesPreviewAction.KIND;
+    config: GenerationConfig;
+}
+
+export namespace RequestGenerateInstancesPreviewAction {
+    export const KIND = 'requestGenerateInstancesPreview';
+
+    export function is(object: unknown): object is RequestGenerateInstancesPreviewAction {
+        return RequestAction.hasKind(object, KIND);
+    }
+
+    export function create(options: { config: GenerationConfig; requestId?: string }): RequestGenerateInstancesPreviewAction {
+        return {
+            kind: KIND,
+            requestId: options.requestId ?? '',
+            config: options.config
+        };
+    }
+}
+
+export interface GenerateInstancesPreviewResponse extends ResponseAction {
+    kind: typeof GenerateInstancesPreviewResponse.KIND;
+    summary: GenerationResultSummary;
+}
+
+export namespace GenerateInstancesPreviewResponse {
+    export const KIND = 'generateInstancesPreviewResponse';
+
+    export function is(object: unknown): object is GenerateInstancesPreviewResponse {
+        return Action.hasKind(object, KIND);
+    }
+
+    export function create(
+        options?: Omit<GenerateInstancesPreviewResponse, 'kind' | 'responseId'> & { responseId?: string }
+    ): GenerateInstancesPreviewResponse {
+        return {
+            kind: KIND,
+            responseId: options?.responseId ?? '',
+            summary: options?.summary ?? { instanceCount: 0, slotCount: 0, linkCount: 0, diagnostics: [] }
+        };
+    }
+}

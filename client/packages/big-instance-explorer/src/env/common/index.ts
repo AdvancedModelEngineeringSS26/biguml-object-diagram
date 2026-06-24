@@ -9,3 +9,4 @@
 
 export * from './instance-explorer.action.js';
 export * from './export.action.js';
+export * from './generate.action.js';
