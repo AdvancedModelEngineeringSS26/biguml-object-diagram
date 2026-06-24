@@ -61,9 +61,14 @@ describe('RandomStrategy', () => {
         assert.equal(strategy.value(prop({ typeKind: 'enumeration', enumLiterals: [] }), ctx(1)), undefined);
     });
 
-    it('returns undefined for reference and unknown types (slots handled elsewhere)', () => {
+    it('returns undefined for reference types (handled by link generation)', () => {
         assert.equal(strategy.value(prop({ typeKind: 'reference' }), ctx(1)), undefined);
-        assert.equal(strategy.value(prop({ typeKind: 'unknown' }), ctx(1)), undefined);
+    });
+
+    it('generates a string for untyped (unknown) properties so the slot is still filled', () => {
+        const v = strategy.value(prop({ name: 'employeeId', typeKind: 'unknown' }), ctx(1, 2));
+        assert.equal(typeof v, 'string');
+        assert.ok(v !== undefined && v.length > 0, `got ${v}`);
     });
 
     it('is deterministic for the same seed, property and index', () => {

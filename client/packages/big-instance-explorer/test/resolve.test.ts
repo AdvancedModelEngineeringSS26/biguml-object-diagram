@@ -37,6 +37,14 @@ describe('parseMultiplicity', () => {
         assert.deepEqual(parseMultiplicity(' 1 .. 2 '), { lower: 1, upper: 2 });
     });
 
+    it('parses textual multiplicity words used by some models', () => {
+        assert.deepEqual(parseMultiplicity('one'), { lower: 1, upper: 1 });
+        assert.deepEqual(parseMultiplicity('One'), { lower: 1, upper: 1 });
+        assert.deepEqual(parseMultiplicity('many'), { lower: 0, upper: undefined });
+        assert.deepEqual(parseMultiplicity('zeroOrOne'), { lower: 0, upper: 1 });
+        assert.deepEqual(parseMultiplicity('oneOrMany'), { lower: 1, upper: undefined });
+    });
+
     it('falls back to required single for unparseable input', () => {
         assert.deepEqual(parseMultiplicity('garbage'), { lower: 1, upper: 1 });
     });

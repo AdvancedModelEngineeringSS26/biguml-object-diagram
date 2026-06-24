@@ -38,7 +38,10 @@ export class RandomStrategy implements ValueStrategy {
 
     value(property: PropertyDescriptor, ctx: ValueContext): string | undefined {
         switch (property.typeKind) {
+            // Untyped properties are treated as plain attributes so their slot is still
+            // filled (models often omit primitive types); only true references are skipped.
             case 'string':
+            case 'unknown':
                 return `${property.name}_${ctx.index}_${randomToken(ctx.rng)}`;
             case 'integer':
                 return String(ctx.rng.int(INTEGER_MIN, INTEGER_MAX));
@@ -51,7 +54,6 @@ export class RandomStrategy implements ValueStrategy {
                     ? ctx.rng.pick(property.enumLiterals)
                     : undefined;
             case 'reference':
-            case 'unknown':
             default:
                 return undefined;
         }

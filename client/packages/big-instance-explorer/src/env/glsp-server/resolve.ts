@@ -32,6 +32,21 @@ export function parseMultiplicity(multiplicity: string | undefined): Multiplicit
     if (trimmed === '*') {
         return { lower: 0, upper: undefined };
     }
+    // Some models use textual multiplicities instead of numeric ones.
+    switch (trimmed.toLowerCase()) {
+        case 'one':
+            return { lower: 1, upper: 1 };
+        case 'many':
+        case 'zeroormany':
+            return { lower: 0, upper: undefined };
+        case 'oneormany':
+            return { lower: 1, upper: undefined };
+        case 'optional':
+        case 'zeroorone':
+            return { lower: 0, upper: 1 };
+        default:
+            break;
+    }
     if (/^\d+$/.test(trimmed)) {
         const exact = Number(trimmed);
         return { lower: exact, upper: exact };
