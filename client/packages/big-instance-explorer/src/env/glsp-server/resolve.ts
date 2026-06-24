@@ -90,3 +90,32 @@ export function toPropertyTypeKind(typeName: string | undefined, isEnumeration =
             return 'reference';
     }
 }
+
+/** How the AST classifies a property's type, derived by the handler via grammar guards. */
+export type TypeCategory = 'enumeration' | 'classifier' | 'datatype' | 'none';
+
+/**
+ * Resolves the generation type-kind from a property's type category and name.
+ *
+ * Key distinction: a property typed to a **DataType** (a value type such as `Address`)
+ * is value-bearing — it gets a generated value (a primitive kind when the name matches,
+ * otherwise a string). Only properties typed to a **classifier** (Class/Interface) are
+ * `reference`s and skipped (they become links). Untyped properties are `unknown`.
+ *
+ * Note: structured DataTypes are still rendered as a flat string value because the
+ * bigUML metamodel stores slot values as string `LiteralSpecification`s (no nesting).
+ */
+export function resolveTypeKind(category: TypeCategory, typeName?: string): PropertyTypeKind {
+    switch (category) {
+        case 'enumeration':
+            return 'enumeration';
+        case 'classifier':
+            return 'reference';
+        case 'none':
+            return 'unknown';
+        case 'datatype': {
+            const kind = toPropertyTypeKind(typeName);
+            return kind === 'reference' || kind === 'unknown' ? 'string' : kind;
+        }
+    }
+}

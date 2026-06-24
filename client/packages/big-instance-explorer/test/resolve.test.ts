@@ -8,7 +8,7 @@
  **********************************************************************************/
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { parseMultiplicity, toPropertyTypeKind } from '../src/env/glsp-server/resolve.js';
+import { parseMultiplicity, resolveTypeKind, toPropertyTypeKind } from '../src/env/glsp-server/resolve.js';
 
 describe('parseMultiplicity', () => {
     it('defaults to required single (1..1) when absent or empty', () => {
@@ -71,5 +71,25 @@ describe('toPropertyTypeKind', () => {
 
     it('returns unknown when there is no type', () => {
         assert.equal(toPropertyTypeKind(undefined), 'unknown');
+    });
+});
+
+describe('resolveTypeKind', () => {
+    it('maps enumeration and classifier categories', () => {
+        assert.equal(resolveTypeKind('enumeration', 'Color'), 'enumeration');
+        assert.equal(resolveTypeKind('classifier', 'Person'), 'reference');
+    });
+
+    it('treats an untyped property as unknown', () => {
+        assert.equal(resolveTypeKind('none'), 'unknown');
+    });
+
+    it('treats DataType-typed properties as value-bearing (generate a value, not a reference)', () => {
+        // A structured DataType (e.g. Address) gets a string value rather than being skipped.
+        assert.equal(resolveTypeKind('datatype', 'Address'), 'string');
+        // Primitive-named DataTypes keep their primitive kind.
+        assert.equal(resolveTypeKind('datatype', 'Integer'), 'integer');
+        assert.equal(resolveTypeKind('datatype', 'String'), 'string');
+        assert.equal(resolveTypeKind('datatype', undefined), 'string');
     });
 });

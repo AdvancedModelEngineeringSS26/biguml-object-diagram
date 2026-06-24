@@ -52,6 +52,13 @@ export interface LinkPlanOptions {
      * Default 0 (strict multiplicity).
      */
     minPerSource?: number;
+    /**
+     * If provided, only instances whose id is in this set originate links (targets may be
+     * any instance in the pool). Used to wire links *from* newly generated instances to
+     * existing or generated targets, without adding links to pre-existing instances.
+     * When omitted, every instance can act as a source.
+     */
+    sourceIds?: ReadonlySet<string>;
     /** Id generator; injectable for deterministic tests (default random UUID). */
     idFactory?: () => string;
 }
@@ -138,7 +145,8 @@ export function planLinks(
     const byClassifier = groupByClassifier(instances);
 
     for (const association of associations) {
-        const sources = byClassifier.get(association.sourceClassifierId) ?? [];
+        const allSources = byClassifier.get(association.sourceClassifierId) ?? [];
+        const sources = options.sourceIds ? allSources.filter(source => options.sourceIds!.has(source.id)) : allSources;
         const targets = byClassifier.get(association.targetClassifierId) ?? [];
         if (sources.length === 0 || targets.length === 0) {
             continue;

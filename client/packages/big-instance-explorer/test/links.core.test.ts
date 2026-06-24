@@ -187,6 +187,43 @@ describe('planLinks', () => {
         }
     });
 
+    it('restricts link sources to sourceIds (reflexive: only listed instances originate links)', () => {
+        const employees = [inst('e1', 'e1', 'E'), inst('e2', 'e2', 'E'), inst('e3', 'e3', 'E')];
+        const reflexive = assoc({ sourceClassifierId: 'E', targetClassifierId: 'E', targetLowerBound: 1, targetUpperBound: 1 });
+        const result = planLinks(employees, [reflexive], { depth: 1, seed: 1, sourceIds: new Set(['e1']), idFactory: counter() });
+        const ops = linkOps(result.patch);
+        assert.equal(ops.length, 1);
+        assert.equal(ops[0].source.ref.__id, 'e1');
+    });
+
+    it('links generated sources to existing targets (existing + generated pool)', () => {
+        // Existing companies + newly generated employees; employees link to existing companies.
+        const existingCompanies = [inst('c1', 'c1', 'Company'), inst('c2', 'c2', 'Company')];
+        const generatedEmployees = [inst('e1', 'e1', 'Employee'), inst('e2', 'e2', 'Employee')];
+        const worksFor = assoc({ id: 'wf', name: 'worksFor', sourceClassifierId: 'Employee', targetClassifierId: 'Company', targetLowerBound: 1, targetUpperBound: 1 });
+        const result = planLinks([...existingCompanies, ...generatedEmployees], [worksFor], {
+            depth: 1,
+            seed: 1,
+            sourceIds: new Set(['e1', 'e2']),
+            idFactory: counter()
+        });
+        const ops = linkOps(result.patch);
+        assert.equal(ops.length, 2);
+        for (const link of ops) {
+            assert.ok(['e1', 'e2'].includes(link.source.ref.__id), 'source must be a generated employee');
+            assert.ok(['c1', 'c2'].includes(link.target.ref.__id), 'target may be an existing company');
+        }
+    });
+
+    it('without sourceIds, every instance can act as a source (back-compat)', () => {
+        const result = planLinks([...persons, ...addresses], [assoc({ targetLowerBound: 1, targetUpperBound: 1 })], {
+            depth: 1,
+            seed: 1,
+            idFactory: counter()
+        });
+        assert.equal(linkOps(result.patch).length, persons.length);
+    });
+
     it('minPerSource never exceeds the upper bound', () => {
         const result = planLinks([...persons, ...addresses], [assoc({ targetLowerBound: 0, targetUpperBound: 0 })], {
             depth: 1,

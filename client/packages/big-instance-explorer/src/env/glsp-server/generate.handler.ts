@@ -45,7 +45,7 @@ import {
     type PropertyView
 } from './generate.core.js';
 import { planLinks, type AssociationView, type LinkPlanResult, type LinkableInstance } from './links.core.js';
-import { parseMultiplicity, toPropertyTypeKind } from './resolve.js';
+import { parseMultiplicity, resolveTypeKind, type TypeCategory } from './resolve.js';
 import { PatternStrategy } from './strategies/pattern.strategy.js';
 import { RandomStrategy } from './strategies/random.strategy.js';
 import { type ValueStrategy } from './strategies/strategy.js';
@@ -108,17 +108,31 @@ function collectHierarchy(start: InstantiableClassifier, modelState: DiagramMode
     return result;
 }
 
+function typeCategory(typeRef: unknown): TypeCategory {
+    if (!typeRef) {
+        return 'none';
+    }
+    if (isEnumeration(typeRef)) {
+        return 'enumeration';
+    }
+    if (isClass(typeRef) || isInterface(typeRef)) {
+        return 'classifier';
+    }
+    // DataType or PrimitiveType -> a value-bearing type.
+    return 'datatype';
+}
+
 function resolvePropertyView(property: Property): PropertyView {
     const typeRef = property.propertyType?.ref;
-    const isEnum = isEnumeration(typeRef);
+    const category = typeCategory(typeRef);
     const bounds = parseMultiplicity(property.multiplicity);
     return {
         id: property.__id,
         name: property.name,
         documentUri: property.$document?.uri.path,
-        typeKind: toPropertyTypeKind(typeRef?.name, isEnum),
+        typeKind: resolveTypeKind(category, typeRef?.name),
         typeName: typeRef?.name,
-        enumLiterals: isEnum ? (typeRef.values ?? []).map(literal => literal.name) : undefined,
+        enumLiterals: category === 'enumeration' && isEnumeration(typeRef) ? (typeRef.values ?? []).map(literal => literal.name) : undefined,
         isReadOnly: property.isReadOnly === true,
         isUnique: property.isUnique === true,
         required: bounds.lower >= 1
@@ -179,6 +193,21 @@ function collectExistingInstanceNames(modelState: DiagramModelState): string[] {
         }
     }
     return names;
+}
+
+/** Existing instances already in the model, as link candidates (so generated instances can link to them). */
+function collectExistingLinkableInstances(modelState: DiagramModelState): LinkableInstance[] {
+    const documentUri = URI.parse(modelState.semanticUri).path;
+    const instances: LinkableInstance[] = [];
+    for (const node of streamAst(modelState.semanticRoot)) {
+        if (isInstanceSpecification(node)) {
+            const classifierId = node.classifier?.ref?.__id;
+            if (classifierId) {
+                instances.push({ id: node.__id, name: node.name, classifierId, documentUri });
+            }
+        }
+    }
+    return instances;
 }
 
 /** Applies generated defaults to every node value of the given kind, leaving explicit fields untouched. */
@@ -245,18 +274,24 @@ function run(config: GenerationConfig, modelState: DiagramModelState): RunResult
     });
 
     const documentUri = URI.parse(modelState.semanticUri).path;
-    const linkable: LinkableInstance[] = result.instances.map(instance => ({
+    const generated: LinkableInstance[] = result.instances.map(instance => ({
         id: instance.id,
         name: instance.name,
         classifierId: instance.classifierId,
         documentUri
     }));
-    const links = planLinks(linkable, resolveAssociationViews(modelState), {
+    // Pool = existing instances + the newly generated ones, so generated instances can be
+    // linked to instances that already exist in the model (e.g. new Employees -> existing Company).
+    const pool = [...collectExistingLinkableInstances(modelState), ...generated];
+    const links = planLinks(pool, resolveAssociationViews(modelState), {
         depth: config.associationDepth,
         seed: config.seed,
         // When the user asks for links (depth >= 1), guarantee at least one per source so
         // optional (0..*) associations still produce visible links.
         minPerSource: config.associationDepth >= 1 ? 1 : 0,
+        // Only originate links from the newly generated instances; never add links to
+        // pre-existing instances' source ends.
+        sourceIds: new Set(generated.map(instance => instance.id)),
         idFactory: createRandomUUID
     });
 
