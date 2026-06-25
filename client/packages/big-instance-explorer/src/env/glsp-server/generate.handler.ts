@@ -80,6 +80,11 @@ function isInstantiableClassifier(node: unknown): node is InstantiableClassifier
     return isDataType(node);
 }
 
+/** A classifier that can be an association endpoint — including abstract ones (e.g. a supertype source). */
+function isClassifierNode(node: unknown): node is Class | Interface | DataType {
+    return isClass(node) || isInterface(node) || isDataType(node);
+}
+
 function propertiesOf(classifier: Class | DataType | Interface): Property[] {
     const owned = (classifier as { properties?: unknown }).properties;
     return Array.isArray(owned) ? owned.filter(isProperty) : [];
@@ -161,6 +166,15 @@ function resolveClassifierView(classifier: InstantiableClassifier, modelState: D
 
 function resolveAssociationViews(modelState: DiagramModelState): AssociationView[] {
     const relations = modelState.semanticRoot.diagram.relations ?? [];
+    // Every instantiable classifier with the id-closure of its supertypes (Generalization /
+    // InterfaceRealization). Used to attach an association to the concrete subtypes that inherit it.
+    const instantiable: { node: InstantiableClassifier; ancestors: Set<string> }[] = [];
+    for (const node of streamAst(modelState.semanticRoot)) {
+        if (isInstantiableClassifier(node)) {
+            instantiable.push({ node, ancestors: new Set(collectHierarchy(node, modelState).map(classifier => classifier.__id)) });
+        }
+    }
+
     const views: AssociationView[] = [];
     for (const relation of relations) {
         if (!isAssociation(relation)) {
@@ -168,22 +182,31 @@ function resolveAssociationViews(modelState: DiagramModelState): AssociationView
         }
         const source = relation.source?.ref;
         const target = relation.target?.ref;
-        if (!isInstantiableClassifier(source) || !isInstantiableClassifier(target)) {
+        // The source may be abstract (e.g. an association declared on a supertype like Person);
+        // the target must be instantiable to act as a link endpoint.
+        if (!isClassifierNode(source) || !isInstantiableClassifier(target)) {
             continue;
         }
         // No selection filter here: planLinks only creates links between classifiers that
         // actually have generated instances, so including every association is safe and
         // avoids dropping links when the user didn't tick both ends.
         const bounds = parseMultiplicity((relation as Association).targetMultiplicity);
-        views.push({
-            id: relation.__id,
-            name: relation.name,
-            documentUri: relation.$document?.uri.path,
-            sourceClassifierId: source.__id,
-            targetClassifierId: target.__id,
-            targetLowerBound: bounds.lower,
-            targetUpperBound: bounds.upper
-        });
+        // Attach the association to every instantiable classifier that is the source itself or
+        // inherits it from a supertype — so inherited associations (e.g. Person.hasAddress on
+        // Employee/Manager) are offered and linked for the concrete subtypes.
+        for (const { node, ancestors } of instantiable) {
+            if (ancestors.has(source.__id)) {
+                views.push({
+                    id: relation.__id,
+                    name: relation.name,
+                    documentUri: relation.$document?.uri.path,
+                    sourceClassifierId: node.__id,
+                    targetClassifierId: target.__id,
+                    targetLowerBound: bounds.lower,
+                    targetUpperBound: bounds.upper
+                });
+            }
+        }
     }
     return views;
 }
