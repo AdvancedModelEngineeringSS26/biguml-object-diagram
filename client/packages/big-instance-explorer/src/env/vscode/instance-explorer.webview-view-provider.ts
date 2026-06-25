@@ -23,6 +23,8 @@ import {
     AvailableExportTemplatesResponse,
     ExportInstancesNotification,
     ExportInstancesResponse,
+    GeneratableClassifiersResponse,
+    GenerateInstancesPreviewResponse,
     InstanceExplorerDataResponse,
     RequestInstanceExplorerDataAction,
     SaveExportedInstancesResponse
@@ -67,7 +69,9 @@ export class InstanceExplorerWebviewViewProvider extends WebviewViewProvider {
             InstanceExplorerDataResponse.KIND,
             AvailableExportTemplatesResponse.KIND,
             ExportInstancesResponse.KIND,
-            SaveExportedInstancesResponse.KIND
+            SaveExportedInstancesResponse.KIND,
+            GeneratableClassifiersResponse.KIND,
+            GenerateInstancesPreviewResponse.KIND
         ]);
         this.toDispose.push(this.actionCache);
     }
