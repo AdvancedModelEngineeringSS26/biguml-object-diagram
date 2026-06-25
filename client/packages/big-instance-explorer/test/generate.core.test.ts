@@ -99,13 +99,21 @@ describe('buildGeneration', () => {
 
     it('warns on a value that is not type-compatible with the property (follow-up: type-consistency)', () => {
         const person = classifier({ name: 'Person', properties: [pv('age', { typeKind: 'integer' })] });
-        const result = buildGeneration([person], { count: 1, strategy: new PatternStrategy({ patterns: { age: 'not-a-number' } }), idFactory: counter() });
+        const result = buildGeneration([person], {
+            count: 1,
+            strategy: new PatternStrategy({ patterns: { 'Person-cid': { age: 'not-a-number' } } }),
+            idFactory: counter()
+        });
         assert.ok(result.diagnostics.some(d => d.code === 'TYPE_MISMATCH' && d.propertyName === 'age'));
     });
 
     it('does not warn when a value is type-compatible', () => {
         const person = classifier({ name: 'Person', properties: [pv('age', { typeKind: 'integer' })] });
-        const result = buildGeneration([person], { count: 1, strategy: new PatternStrategy({ patterns: { age: '{n}' } }), idFactory: counter() });
+        const result = buildGeneration([person], {
+            count: 1,
+            strategy: new PatternStrategy({ patterns: { 'Person-cid': { age: '{n}' } } }),
+            idFactory: counter()
+        });
         assert.equal(result.diagnostics.filter(d => d.code === 'TYPE_MISMATCH').length, 0);
     });
 

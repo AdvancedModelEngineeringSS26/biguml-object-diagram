@@ -19,8 +19,8 @@ export interface GenerationConfig {
     countPerClassifier: number;
     /** Strategy used to fill slot values. */
     strategy: GenerationStrategyKind;
-    /** Pattern strategy config: property name -> format string (e.g. `User_{n}`). */
-    patterns?: Record<string, string>;
+    /** Pattern strategy config: classifierId -> (property name -> format string, e.g. `User_{n}`). */
+    patterns?: Record<string, Record<string, string>>;
     /** How deeply to follow associations (0 = no links, >= 1 = direct associations). */
     associationDepth: number;
     /** Optional seed for reproducible generation. */

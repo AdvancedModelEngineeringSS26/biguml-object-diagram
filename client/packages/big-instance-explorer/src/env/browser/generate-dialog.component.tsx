@@ -7,67 +7,79 @@
  * SPDX-License-Identifier: MIT
  **********************************************************************************/
 import { useMemo, useState, type CSSProperties, type ReactElement } from 'react';
-import type { GenerationConfig, GenerationResultSummary, GenerationStrategyKind } from '../common/index.js';
-
-export interface GenerateDialogClassifier {
-    classifierId: string;
-    classifierName: string;
-}
+import {
+    suggestPattern,
+    type GeneratableClassifier,
+    type GenerationConfig,
+    type GenerationResultSummary,
+    type GenerationStrategyKind
+} from '../common/index.js';
 
 interface GenerateDialogProps {
-    classifiers: GenerateDialogClassifier[];
+    classifiers: GeneratableClassifier[];
     preview?: GenerationResultSummary;
     onClose: () => void;
     onPreview: (config: GenerationConfig) => void;
     onGenerate: (config: GenerationConfig) => void;
 }
 
-/** Parses a `propertyName=format` block into a pattern map (one rule per line). */
-function parsePatterns(text: string): Record<string, string> {
-    const patterns: Record<string, string> = {};
-    for (const line of text.split('\n')) {
-        const separator = line.indexOf('=');
-        if (separator < 0) {
-            continue;
-        }
-        const key = line.slice(0, separator).trim();
-        const value = line.slice(separator + 1).trim();
-        if (key.length > 0) {
-            patterns[key] = value;
-        }
-    }
-    return patterns;
-}
-
 /**
  * Inline, single-column generation form rendered inside the (narrow) Instances panel.
- * Deliberately not a fixed overlay so it flows with the panel and never overflows it.
+ * In `pattern` mode each selected classifier gets a collapsible section listing its
+ * properties, each with an editable field prefilled by `suggestPattern` (empty = random fallback).
  */
 export function GenerateDialog(props: GenerateDialogProps): ReactElement {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [count, setCount] = useState(3);
     const [strategy, setStrategy] = useState<GenerationStrategyKind>('realistic');
-    const [patternsText, setPatternsText] = useState('');
+    // classifierId -> (property -> edited pattern). Absent => use the suggested default.
+    const [patternEdits, setPatternEdits] = useState<Record<string, Record<string, string>>>({});
+    const [expanded, setExpanded] = useState<Record<string, boolean>>({});
     const [associationDepth, setAssociationDepth] = useState(1);
     const [seedText, setSeedText] = useState('');
 
-    const config = useMemo<GenerationConfig>(
-        () => ({
+    const effectivePattern = (classifier: GeneratableClassifier, property: string): string =>
+        patternEdits[classifier.classifierId]?.[property] ?? suggestPattern(classifier.classifierName, property);
+
+    const config = useMemo<GenerationConfig>(() => {
+        let patterns: Record<string, Record<string, string>> | undefined;
+        if (strategy === 'pattern') {
+            patterns = {};
+            for (const classifier of props.classifiers) {
+                if (!selectedIds.includes(classifier.classifierId)) {
+                    continue;
+                }
+                const map: Record<string, string> = {};
+                for (const property of classifier.properties) {
+                    const value = effectivePattern(classifier, property.name).trim();
+                    if (value.length > 0) {
+                        map[property.name] = value;
+                    }
+                }
+                if (Object.keys(map).length > 0) {
+                    patterns[classifier.classifierId] = map;
+                }
+            }
+        }
+        return {
             classifierIds: selectedIds,
             countPerClassifier: count,
             strategy,
-            patterns: strategy === 'pattern' ? parsePatterns(patternsText) : undefined,
+            patterns,
             associationDepth,
             seed: seedText.trim().length > 0 ? Number(seedText) : undefined
-        }),
-        [selectedIds, count, strategy, patternsText, associationDepth, seedText]
-    );
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedIds, count, strategy, patternEdits, associationDepth, seedText, props.classifiers]);
 
     const invalid = selectedIds.length === 0 || count < 1 || (seedText.trim().length > 0 && Number.isNaN(Number(seedText)));
 
-    const toggleClassifier = (id: string) => {
+    const toggleClassifier = (id: string): void =>
         setSelectedIds(current => (current.includes(id) ? current.filter(value => value !== id) : [...current, id]));
-    };
+    const setPattern = (classifierId: string, property: string, value: string): void =>
+        setPatternEdits(current => ({ ...current, [classifierId]: { ...(current[classifierId] ?? {}), [property]: value } }));
+
+    const selectedClassifiers = props.classifiers.filter(classifier => selectedIds.includes(classifier.classifierId));
 
     return (
         <section style={cardStyle}>
@@ -109,21 +121,50 @@ export function GenerateDialog(props: GenerateDialogProps): ReactElement {
                 <select value={strategy} onChange={event => setStrategy(event.target.value as GenerationStrategyKind)}>
                     <option value='realistic'>Realistic (Faker)</option>
                     <option value='random'>Random (type-driven)</option>
-                    <option value='pattern'>Pattern (with random fallback)</option>
+                    <option value='pattern'>Pattern (editable per property)</option>
                 </select>
             </label>
 
             {strategy === 'pattern' ? (
-                <label style={fieldStyle}>
-                    <span style={labelStyle}>Patterns (one propertyName=format per line)</span>
-                    <textarea
-                        onChange={event => setPatternsText(event.target.value)}
-                        placeholder={'name=User_{n}\nemail=user{n}@example.org\nrole={pick:admin,user,guest}'}
-                        rows={4}
-                        style={textareaStyle}
-                        value={patternsText}
-                    />
-                </label>
+                <div style={fieldStyle}>
+                    <span style={labelStyle}>Patterns — {'{n}'} = index, {'{pick:a,b,c}'} = random choice; empty = random</span>
+                    {selectedClassifiers.length === 0 ? (
+                        <div style={mutedStyle}>Select one or more classifiers above to edit their patterns.</div>
+                    ) : (
+                        selectedClassifiers.map(classifier => {
+                            const open = expanded[classifier.classifierId] ?? true;
+                            return (
+                                <div key={classifier.classifierId} style={patternSectionStyle}>
+                                    <button
+                                        onClick={() => setExpanded(current => ({ ...current, [classifier.classifierId]: !open }))}
+                                        style={patternHeaderStyle}
+                                        type='button'
+                                    >
+                                        <span className={`codicon ${open ? 'codicon-chevron-down' : 'codicon-chevron-right'}`} />
+                                        <span>{classifier.classifierName}</span>
+                                    </button>
+                                    {open
+                                        ? classifier.properties.length > 0
+                                            ? classifier.properties.map(property => (
+                                                  <label key={property.name} style={patternRowStyle}>
+                                                      <span style={patternPropStyle} title={property.typeName}>
+                                                          {property.name}
+                                                      </span>
+                                                      <input
+                                                          onChange={event => setPattern(classifier.classifierId, property.name, event.target.value)}
+                                                          style={patternInputStyle}
+                                                          type='text'
+                                                          value={effectivePattern(classifier, property.name)}
+                                                      />
+                                                  </label>
+                                              ))
+                                            : <div style={mutedStyle}>No editable properties.</div>
+                                        : null}
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
             ) : null}
 
             <label style={fieldStyle}>
@@ -218,7 +259,22 @@ const classifierPanelStyle: CSSProperties = {
     overflow: 'auto'
 };
 const checkboxRowStyle: CSSProperties = { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' };
-const textareaStyle: CSSProperties = { width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'var(--vscode-editor-font-family)' };
+const patternSectionStyle: CSSProperties = { border: '1px solid var(--vscode-panel-border)', borderRadius: '4px', padding: '6px', display: 'grid', gap: '4px' };
+const patternHeaderStyle: CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    background: 'transparent',
+    border: 'none',
+    color: 'inherit',
+    cursor: 'pointer',
+    padding: 0,
+    fontSize: '12px',
+    fontWeight: 600
+};
+const patternRowStyle: CSSProperties = { display: 'grid', gridTemplateColumns: '40% 60%', alignItems: 'center', gap: '6px' };
+const patternPropStyle: CSSProperties = { fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
+const patternInputStyle: CSSProperties = { width: '100%', boxSizing: 'border-box', fontFamily: 'var(--vscode-editor-font-family)', fontSize: '11px' };
 const buttonRowStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: '6px' };
 const previewStyle: CSSProperties = {
     border: '1px solid var(--vscode-panel-border)',

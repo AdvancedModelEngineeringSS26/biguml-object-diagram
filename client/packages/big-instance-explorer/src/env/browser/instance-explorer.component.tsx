@@ -17,10 +17,12 @@ import {
     CreateInstanceLinkOperation,
     ExportInstancesNotification,
     ExportInstancesResponse,
+    GeneratableClassifiersResponse,
     GenerateInstancesOperation,
     GenerateInstancesPreviewResponse,
     InstanceExplorerDataResponse,
     RequestExportInstancesAction,
+    RequestGeneratableClassifiersAction,
     RequestGenerateInstancesPreviewAction,
     RequestSaveExportedInstancesAction,
     SaveExportedInstancesResponse,
@@ -34,6 +36,7 @@ import {
     type DiagnosticSummary,
     type EligibleInstance,
     type ExportTemplateSummary,
+    type GeneratableClassifier,
     type GenerationConfig,
     type GenerationResultSummary,
     type InstanceLinkSummary,
@@ -42,7 +45,7 @@ import {
     type SlotSummary
 } from '../common/index.js';
 import { ExportDialog } from './export-dialog.component.js';
-import { GenerateDialog, type GenerateDialogClassifier } from './generate-dialog.component.js';
+import { GenerateDialog } from './generate-dialog.component.js';
 
 type EditTarget = 'slot' | 'instance' | 'classifier';
 
@@ -94,6 +97,7 @@ export function InstanceExplorer(): ReactElement {
     const [selectedInstanceId, setSelectedInstanceId] = useState<string | undefined>();
     const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
     const [generatePreview, setGeneratePreview] = useState<GenerationResultSummary | undefined>();
+    const [generatableClassifiers, setGeneratableClassifiers] = useState<GeneratableClassifier[]>([]);
 
     useEffect(() => {
         listenAction(action => {
@@ -120,6 +124,11 @@ export function InstanceExplorer(): ReactElement {
 
                 if (GenerateInstancesPreviewResponse.is(action)) {
                     setGeneratePreview(action.summary);
+                    return;
+                }
+
+                if (GeneratableClassifiersResponse.is(action)) {
+                    setGeneratableClassifiers(action.classifiers);
                     return;
                 }
 
@@ -878,24 +887,10 @@ export function InstanceExplorer(): ReactElement {
     const showEmptyState =
         filteredGroups.length === 0 && filteredUnclassified.length === 0 && filteredManyToMany.length === 0 && !hasAvailable;
 
-    // All instantiable classifiers (Class/DataType), whether or not they already have instances.
-    const generatableClassifiers: GenerateDialogClassifier[] = (() => {
-        const byId = new Map<string, GenerateDialogClassifier>();
-        for (const group of classifierGroups) {
-            if (group.isInstantiable) {
-                byId.set(group.classifierId, { classifierId: group.classifierId, classifierName: group.classifierName });
-            }
-        }
-        for (const classifier of availableForInstantiation.classifiers) {
-            if (!byId.has(classifier.classifierId)) {
-                byId.set(classifier.classifierId, { classifierId: classifier.classifierId, classifierName: classifier.classifierName });
-            }
-        }
-        return Array.from(byId.values()).sort((left, right) => left.classifierName.localeCompare(right.classifierName));
-    })();
-
     const openGenerateDialog = () => {
         setGeneratePreview(undefined);
+        // Fetch the instantiable classifiers + their properties for the per-property pattern editor.
+        dispatchAction(RequestGeneratableClassifiersAction.create());
         setIsGenerateDialogOpen(true);
     };
 
