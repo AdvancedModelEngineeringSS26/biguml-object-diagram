@@ -81,7 +81,8 @@ export interface GeneratableAssociationTarget {
 export interface GeneratableAssociation {
     associationId: string;
     associationName: string;
-    sourceClassifierId: string;
+    /** Every concrete classifier that is the source of this association (directly or via inheritance). */
+    sourceClassifierIds: string[];
     targetClassifierId: string;
     targets: GeneratableAssociationTarget[];
 }

@@ -35,6 +35,7 @@ import {
     GenerateInstancesPreviewResponse,
     RequestGeneratableClassifiersAction,
     RequestGenerateInstancesPreviewAction,
+    type GeneratableAssociation,
     type GenerationConfig,
     type GenerationResultSummary
 } from '../common/generate.action.js';
@@ -437,16 +438,30 @@ export class GeneratableClassifiersActionHandler implements ActionHandler {
             list.push(instance);
             instancesByClassifier.set(instance.classifierId, list);
         }
-        const associations = resolveAssociationViews(this.modelState).map(association => ({
-            associationId: association.id,
-            associationName: association.name ?? association.id,
-            sourceClassifierId: association.sourceClassifierId,
-            targetClassifierId: association.targetClassifierId,
-            targets: (instancesByClassifier.get(association.targetClassifierId) ?? []).map(instance => ({
-                instanceId: instance.id,
-                instanceName: instance.name
-            }))
-        }));
+        // Dedupe the (inheritance-expanded) views to one entry per association, collecting all
+        // concrete source classifiers — so an inherited association (e.g. Person.hasAddress on
+        // Employee/Customer/Manager) appears once with several sources, not several duplicate rows.
+        const associationsById = new Map<string, GeneratableAssociation>();
+        for (const association of resolveAssociationViews(this.modelState)) {
+            const existing = associationsById.get(association.id);
+            if (existing) {
+                if (!existing.sourceClassifierIds.includes(association.sourceClassifierId)) {
+                    existing.sourceClassifierIds.push(association.sourceClassifierId);
+                }
+                continue;
+            }
+            associationsById.set(association.id, {
+                associationId: association.id,
+                associationName: association.name ?? association.id,
+                sourceClassifierIds: [association.sourceClassifierId],
+                targetClassifierId: association.targetClassifierId,
+                targets: (instancesByClassifier.get(association.targetClassifierId) ?? []).map(instance => ({
+                    instanceId: instance.id,
+                    instanceName: instance.name
+                }))
+            });
+        }
+        const associations = [...associationsById.values()];
 
         return [GeneratableClassifiersResponse.create({ responseId: action.requestId, classifiers, associations })];
     }

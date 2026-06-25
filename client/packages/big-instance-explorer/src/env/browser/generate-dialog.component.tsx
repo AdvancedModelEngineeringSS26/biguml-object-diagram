@@ -102,9 +102,11 @@ export function GenerateDialog(props: GenerateDialogProps): ReactElement {
 
     const classifierName = (id: string): string =>
         props.classifiers.find(classifier => classifier.classifierId === id)?.classifierName ?? id;
-    // Associations whose source classifier is selected and that have existing target instances to pin.
-    const relevantAssociations = props.associations.filter(
-        association => selectedIds.includes(association.sourceClassifierId) && association.targets.length > 0
+    // Associations a selected classifier participates in as a source (directly or via inheritance).
+    // Shown even with no existing target instances (e.g. an empty diagram): "Auto" / "within this
+    // batch" still create links between generated instances.
+    const relevantAssociations = props.associations.filter(association =>
+        association.sourceClassifierIds.some(id => selectedIds.includes(id))
     );
 
     const invalid = selectedIds.length === 0 || count < 1 || (seedText.trim().length > 0 && Number.isNaN(Number(seedText)));
@@ -223,12 +225,15 @@ export function GenerateDialog(props: GenerateDialogProps): ReactElement {
                 </label>
             ) : null}
 
-            {associationDepth >= 1 && relevantAssociations.length > 0 ? (
+            {associationDepth >= 1 && !linkWithinBatchOnly && relevantAssociations.length > 0 ? (
                 <div style={fieldStyle}>
                     <span style={labelStyle}>Link targets (choose a specific existing instance, or Auto)</span>
                     {relevantAssociations.map(association => (
                         <label key={association.associationId} style={patternRowStyle}>
-                            <span style={patternPropStyle} title={`${classifierName(association.sourceClassifierId)} → ${classifierName(association.targetClassifierId)}`}>
+                            <span
+                                style={patternPropStyle}
+                                title={`${association.sourceClassifierIds.map(classifierName).join(', ')} → ${classifierName(association.targetClassifierId)}`}
+                            >
                                 {association.associationName}
                             </span>
                             <select
