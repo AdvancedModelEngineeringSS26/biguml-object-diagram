@@ -244,6 +244,25 @@ describe('planLinks', () => {
         }
     });
 
+    it('restricts targets to targetIds (link within this batch: generated sources -> generated targets only)', () => {
+        const existingCompanies = [inst('c1', 'c1', 'Company'), inst('c2', 'c2', 'Company')];
+        const generatedEmployees = [inst('e1', 'e1', 'Employee'), inst('e2', 'e2', 'Employee')];
+        const generatedCompanies = [inst('gc1', 'gc1', 'Company'), inst('gc2', 'gc2', 'Company')];
+        const worksFor = assoc({ id: 'wf', name: 'worksFor', sourceClassifierId: 'Employee', targetClassifierId: 'Company', targetLowerBound: 1, targetUpperBound: 1 });
+        const result = planLinks([...existingCompanies, ...generatedEmployees, ...generatedCompanies], [worksFor], {
+            depth: 1,
+            seed: 1,
+            sourceIds: new Set(['e1', 'e2']),
+            targetIds: new Set(['gc1', 'gc2', 'e1', 'e2']),
+            idFactory: counter()
+        });
+        const ops = linkOps(result.patch);
+        assert.equal(ops.length, 2);
+        for (const link of ops) {
+            assert.ok(['gc1', 'gc2'].includes(link.target.ref.__id), `target must be a generated company, got ${link.target.ref.__id}`);
+        }
+    });
+
     it('without sourceIds, every instance can act as a source (back-compat)', () => {
         const result = planLinks([...persons, ...addresses], [assoc({ targetLowerBound: 1, targetUpperBound: 1 })], {
             depth: 1,

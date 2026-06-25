@@ -25,6 +25,12 @@ export interface GenerationConfig {
     associationDepth: number;
     /** Optional `associationId` -> chosen existing target `instanceId` (else automatic target selection). */
     linkTargets?: Record<string, string>;
+    /**
+     * When true, links connect generated instances only to other instances created in the same
+     * batch (not to pre-existing ones) — so generating e.g. Company + Employee + Address yields a
+     * self-contained connected cluster instead of linking to existing instances.
+     */
+    linkWithinBatchOnly?: boolean;
     /** Optional seed for reproducible generation. */
     seed?: number;
 }

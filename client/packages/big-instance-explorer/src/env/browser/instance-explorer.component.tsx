@@ -927,6 +927,7 @@ export function InstanceExplorer(): ReactElement {
                     onPreview={(config: GenerationConfig) => {
                         dispatchAction(RequestGenerateInstancesPreviewAction.create({ config }));
                     }}
+                    onConfigChange={() => setGeneratePreview(undefined)}
                     preview={generatePreview}
                 />
             ) : null}

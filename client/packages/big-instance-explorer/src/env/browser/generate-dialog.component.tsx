@@ -6,7 +6,7 @@
  *
  * SPDX-License-Identifier: MIT
  **********************************************************************************/
-import { useMemo, useState, type CSSProperties, type ReactElement } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement } from 'react';
 import {
     suggestPattern,
     type GeneratableAssociation,
@@ -23,6 +23,8 @@ interface GenerateDialogProps {
     onClose: () => void;
     onPreview: (config: GenerationConfig) => void;
     onGenerate: (config: GenerationConfig) => void;
+    /** Invoked when the configuration changes so a now-stale preview can be cleared. */
+    onConfigChange?: () => void;
 }
 
 /**
@@ -40,6 +42,7 @@ export function GenerateDialog(props: GenerateDialogProps): ReactElement {
     const [associationDepth, setAssociationDepth] = useState(1);
     // associationId -> chosen existing target instanceId ('' = automatic).
     const [linkTargets, setLinkTargets] = useState<Record<string, string>>({});
+    const [linkWithinBatchOnly, setLinkWithinBatchOnly] = useState(false);
     const [seedText, setSeedText] = useState('');
 
     const effectivePattern = (classifier: GeneratableClassifier, property: string): string =>
@@ -79,10 +82,23 @@ export function GenerateDialog(props: GenerateDialogProps): ReactElement {
             patterns,
             associationDepth,
             linkTargets: chosenLinkTargets,
+            linkWithinBatchOnly: associationDepth >= 1 ? linkWithinBatchOnly : undefined,
             seed: seedText.trim().length > 0 ? Number(seedText) : undefined
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedIds, count, strategy, patternEdits, associationDepth, linkTargets, seedText, props.classifiers]);
+    }, [selectedIds, count, strategy, patternEdits, associationDepth, linkTargets, linkWithinBatchOnly, seedText, props.classifiers]);
+
+    // A preview reflects one specific config; clear it whenever the config changes so the user
+    // never sees a dry-run that no longer matches the current selections.
+    const firstRender = useRef(true);
+    useEffect(() => {
+        if (firstRender.current) {
+            firstRender.current = false;
+            return;
+        }
+        props.onConfigChange?.();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [config]);
 
     const classifierName = (id: string): string =>
         props.classifiers.find(classifier => classifier.classifierId === id)?.classifierName ?? id;
@@ -195,6 +211,17 @@ export function GenerateDialog(props: GenerateDialogProps): ReactElement {
                     value={associationDepth}
                 />
             </label>
+
+            {associationDepth >= 1 ? (
+                <label style={checkboxRowStyle} title='Link the instances generated in this batch to each other instead of to pre-existing instances'>
+                    <input
+                        checked={linkWithinBatchOnly}
+                        onChange={event => setLinkWithinBatchOnly(event.target.checked)}
+                        type='checkbox'
+                    />
+                    <span>Link only within this batch (connect the generated instances to each other)</span>
+                </label>
+            ) : null}
 
             {associationDepth >= 1 && relevantAssociations.length > 0 ? (
                 <div style={fieldStyle}>

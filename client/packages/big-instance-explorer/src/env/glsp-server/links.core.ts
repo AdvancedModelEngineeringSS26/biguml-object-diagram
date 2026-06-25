@@ -60,6 +60,12 @@ export interface LinkPlanOptions {
      */
     sourceIds?: ReadonlySet<string>;
     /**
+     * If provided, only instances whose id is in this set may be link *targets*. Used by the
+     * "link within this batch" option so generated sources connect to generated targets rather
+     * than to pre-existing instances. When omitted, any instance in the pool can be a target.
+     */
+    targetIds?: ReadonlySet<string>;
+    /**
      * Optional `associationId` → target `instanceId`. For those associations every source is
      * linked to that one specific (e.g. existing) instance instead of randomly chosen targets.
      * If the id is not found in the pool, the association falls back to automatic selection.
@@ -153,7 +159,9 @@ export function planLinks(
     for (const association of associations) {
         const allSources = byClassifier.get(association.sourceClassifierId) ?? [];
         const sources = options.sourceIds ? allSources.filter(source => options.sourceIds!.has(source.id)) : allSources;
-        const targets = byClassifier.get(association.targetClassifierId) ?? [];
+        const allTargets = byClassifier.get(association.targetClassifierId) ?? [];
+        // When restricted (e.g. "link within this batch"), only these instances may be targets.
+        const targets = options.targetIds ? allTargets.filter(target => options.targetIds!.has(target.id)) : allTargets;
         if (sources.length === 0 || targets.length === 0) {
             continue;
         }

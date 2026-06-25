@@ -342,6 +342,9 @@ function run(config: GenerationConfig, modelState: DiagramModelState): RunResult
         // Only originate links from the newly generated instances; never add links to
         // pre-existing instances' source ends.
         sourceIds: new Set(generated.map(instance => instance.id)),
+        // "Link within this batch": restrict targets to the generated instances too, so the new
+        // instances form a self-contained connected cluster instead of linking to existing ones.
+        targetIds: config.linkWithinBatchOnly ? new Set(generated.map(instance => instance.id)) : undefined,
         // Per-association chosen existing target instances (UI), else automatic selection.
         fixedTargets: config.linkTargets,
         idFactory: createRandomUUID
