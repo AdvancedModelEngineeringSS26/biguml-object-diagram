@@ -80,7 +80,9 @@ export class RealisticStrategy implements ValueStrategy {
             return faker.date.past().toISOString().slice(0, 10);
         }
         if (name.includes('year')) {
-            return String(faker.date.past().getFullYear());
+            // A realistic spread of years (e.g. birth/founding years). `faker.date.past()` defaults
+            // to within ~1 year, which yields the same year for every instance and breaks isUnique.
+            return String(faker.number.int({ min: 1950, max: new Date().getFullYear() }));
         }
         // Numeric semantics inferred from the name (helps untyped attributes look right).
         if (name.includes('salary') || name.includes('income') || name.includes('wage')) {

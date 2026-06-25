@@ -73,4 +73,13 @@ describe('RealisticStrategy (Faker-backed)', () => {
         const b = new RealisticStrategy(42).value(prop('fullName'), ctx());
         assert.equal(a, b);
     });
+
+    it('generates a spread of years for *year fields (so isUnique can be satisfied)', () => {
+        const strategy = new RealisticStrategy(7);
+        const years = Array.from({ length: 6 }, () => strategy.value(prop('birthYear', { typeKind: 'unknown' }), ctx()));
+        for (const year of years) {
+            assert.match(year ?? '', /^\d{4}$/, `expected a 4-digit year, got ${year}`);
+        }
+        assert.ok(new Set(years).size >= 4, `expected varied years, got ${JSON.stringify(years)}`);
+    });
 });
