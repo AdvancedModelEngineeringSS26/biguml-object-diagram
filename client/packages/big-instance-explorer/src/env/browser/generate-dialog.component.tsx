@@ -129,7 +129,9 @@ export function GenerateDialog(props: GenerateDialogProps): ReactElement {
             <div style={subtitleStyle}>Create instances with slot values for the selected classifiers in one undoable step.</div>
 
             <div style={fieldStyle}>
-                <span style={labelStyle}>Classifiers</span>
+                <span style={labelStyle} title='Pick the classes/data types to instantiate. Inherited properties are included. With association depth ≥ 2, related classifiers are generated automatically too.'>
+                    Classifiers
+                </span>
                 <div style={classifierPanelStyle}>
                     {props.classifiers.length > 0 ? (
                         props.classifiers.map(classifier => (
@@ -149,12 +151,23 @@ export function GenerateDialog(props: GenerateDialogProps): ReactElement {
             </div>
 
             <label style={fieldStyle}>
-                <span style={labelStyle}>Instances per classifier</span>
+                <span style={labelStyle} title='How many instances to create for each selected classifier.'>Instances per classifier</span>
                 <input min={1} onChange={event => setCount(Math.max(1, Number(event.target.value) || 1))} type='number' value={count} />
             </label>
 
             <label style={fieldStyle}>
-                <span style={labelStyle}>Strategy</span>
+                <span
+                    style={labelStyle}
+                    title={
+                        'How slot values are produced (applies to every generated classifier):\n' +
+                        '• Realistic — Faker values from the field name (name, email, city…), with a type fallback.\n' +
+                        '• Random — type-correct dummy values (String/Integer/Boolean/Real/Enumeration).\n' +
+                        '• Pattern — your templates per property; unmapped properties fall back to random.\n' +
+                        'Note: in Pattern mode, classifiers pulled in by association depth use random (only selected classifiers are configurable).'
+                    }
+                >
+                    Strategy
+                </span>
                 <select value={strategy} onChange={event => setStrategy(event.target.value as GenerationStrategyKind)}>
                     <option value='realistic'>Realistic (Faker)</option>
                     <option value='random'>Random (type-driven)</option>
@@ -257,7 +270,12 @@ export function GenerateDialog(props: GenerateDialogProps): ReactElement {
             ) : null}
 
             <label style={fieldStyle}>
-                <span style={labelStyle}>Seed (optional, for reproducible output)</span>
+                <span
+                    style={labelStyle}
+                    title='Same seed + same configuration ⇒ identical output (values, {pick} choices, link selection). Leave blank for fresh-random each run.'
+                >
+                    Seed (optional, for reproducible output)
+                </span>
                 <input onChange={event => setSeedText(event.target.value)} placeholder='e.g. 42' type='text' value={seedText} />
             </label>
 
