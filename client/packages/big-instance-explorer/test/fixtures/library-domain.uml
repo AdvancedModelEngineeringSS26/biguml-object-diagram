@@ -1,0 +1,89 @@
+{
+	"diagram": {
+		"__type": "ClassDiagram",
+		"__id": "LibraryDiagram",
+		"diagramType": "CLASS",
+		"entities": [
+			{ "__type": "PrimitiveType", "__id": "type-string", "name": "String" },
+			{ "__type": "PrimitiveType", "__id": "type-integer", "name": "Integer" },
+			{ "__type": "PrimitiveType", "__id": "type-boolean", "name": "Boolean" },
+			{ "__type": "PrimitiveType", "__id": "type-real", "name": "Real" },
+			{
+				"__type": "Enumeration",
+				"__id": "enum-bookstatus",
+				"name": "BookStatus",
+				"values": [
+					{ "__type": "EnumerationLiteral", "__id": "lit-available", "name": "AVAILABLE" },
+					{ "__type": "EnumerationLiteral", "__id": "lit-borrowed", "name": "BORROWED" },
+					{ "__type": "EnumerationLiteral", "__id": "lit-lost", "name": "LOST" }
+				]
+			},
+			{
+				"__type": "Class",
+				"__id": "class-book",
+				"name": "LibraryBook",
+				"isAbstract": false,
+				"properties": [
+					{ "__type": "Property", "__id": "prop-title", "name": "title", "isReadOnly": false, "isUnique": false, "multiplicity": "one", "propertyType": { "__type": "Reference", "__refType": "DataTypeReference", "__value": "type-string" } },
+					{ "__type": "Property", "__id": "prop-pageCount", "name": "pageCount", "isReadOnly": false, "isUnique": false, "propertyType": { "__type": "Reference", "__refType": "DataTypeReference", "__value": "type-integer" } },
+					{ "__type": "Property", "__id": "prop-rating", "name": "rating", "isReadOnly": false, "isUnique": false, "propertyType": { "__type": "Reference", "__refType": "DataTypeReference", "__value": "type-real" } },
+					{ "__type": "Property", "__id": "prop-available", "name": "available", "isReadOnly": false, "isUnique": false, "propertyType": { "__type": "Reference", "__refType": "DataTypeReference", "__value": "type-boolean" } },
+					{ "__type": "Property", "__id": "prop-status", "name": "status", "isReadOnly": false, "isUnique": false, "propertyType": { "__type": "Reference", "__refType": "DataTypeReference", "__value": "enum-bookstatus" } },
+					{ "__type": "Property", "__id": "prop-isbn", "name": "isbn", "isReadOnly": false, "isUnique": true, "multiplicity": "one", "propertyType": { "__type": "Reference", "__refType": "DataTypeReference", "__value": "type-string" } },
+					{ "__type": "Property", "__id": "prop-shelfCode", "name": "shelfCode", "isReadOnly": true, "isUnique": false, "propertyType": { "__type": "Reference", "__refType": "DataTypeReference", "__value": "type-string" } },
+					{ "__type": "Property", "__id": "prop-tags", "name": "tags", "isReadOnly": false, "isUnique": false, "multiplicity": "*", "propertyType": { "__type": "Reference", "__refType": "DataTypeReference", "__value": "type-string" } }
+				],
+				"operations": []
+			},
+			{
+				"__type": "Class",
+				"__id": "class-member",
+				"name": "LibraryMember",
+				"isAbstract": false,
+				"properties": [
+					{ "__type": "Property", "__id": "prop-memberName", "name": "memberName", "isReadOnly": false, "isUnique": false, "multiplicity": "one", "propertyType": { "__type": "Reference", "__refType": "DataTypeReference", "__value": "type-string" } },
+					{ "__type": "Property", "__id": "prop-email", "name": "email", "isReadOnly": false, "isUnique": false, "propertyType": { "__type": "Reference", "__refType": "DataTypeReference", "__value": "type-string" } }
+				],
+				"operations": []
+			},
+			{
+				"__type": "InstanceSpecification",
+				"__id": "member-alice",
+				"name": "alice",
+				"classifier": { "__type": "Reference", "__refType": "InstanceClassifier", "__value": "class-member" },
+				"slots": [
+					{
+						"__type": "Slot",
+						"__id": "slot-alice-name",
+						"name": "memberName",
+						"definingFeature": { "__type": "Reference", "__refType": "SlotDefiningFeature", "__value": "prop-memberName" },
+						"values": [ { "__type": "LiteralSpecification", "__id": "val-alice-name", "name": "Alice", "value": "Alice" } ]
+					}
+				]
+			}
+		],
+		"relations": [
+			{
+				"__type": "Association",
+				"__id": "assoc-borrowedBy",
+				"name": "borrowedBy",
+				"sourceMultiplicity": "*",
+				"targetMultiplicity": "one",
+				"sourceAggregation": "NONE",
+				"targetAggregation": "NONE",
+				"visibility": "PUBLIC",
+				"source": { "__type": "Reference", "__refType": "Node", "__value": "class-book" },
+				"target": { "__type": "Reference", "__refType": "Node", "__value": "class-member" },
+				"relationType": "ASSOCIATION"
+			}
+		]
+	},
+	"metaInfos": [
+		{ "__type": "Size", "__id": "size-class-book", "height": 140, "width": 220, "element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "class-book" } },
+		{ "__type": "Position", "__id": "pos-class-book", "x": 80, "y": 60, "element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "class-book" } },
+		{ "__type": "Size", "__id": "size-class-member", "height": 100, "width": 200, "element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "class-member" } },
+		{ "__type": "Position", "__id": "pos-class-member", "x": 420, "y": 60, "element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "class-member" } },
+		{ "__type": "Size", "__id": "size-member-alice", "height": 80, "width": 180, "element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "member-alice" } },
+		{ "__type": "Position", "__id": "pos-member-alice", "x": 420, "y": 240, "element": { "__type": "Reference", "__refType": "ElementWithSizeAndPosition", "__value": "member-alice" } }
+	]
+}
