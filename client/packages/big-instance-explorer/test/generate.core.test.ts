@@ -221,6 +221,20 @@ describe('sanitizeSlotValue', () => {
         assert.equal(sanitizeSlotValue('   '), 'value');
     });
 
+    it('prefixes bare numeric/boolean values so they survive the grammar (INT/BOOL shadowing)', () => {
+        assert.equal(sanitizeSlotValue('121544'), '_121544');
+        assert.equal(sanitizeSlotValue('3.14'), '_3.14');
+        assert.equal(sanitizeSlotValue('-5'), '_-5');
+        assert.equal(sanitizeSlotValue('true'), '_true');
+        assert.equal(sanitizeSlotValue('false'), '_false');
+    });
+
+    it('does not prefix values that already contain a non-digit', () => {
+        assert.equal(sanitizeSlotValue('Toys'), 'Toys');
+        assert.equal(sanitizeSlotValue('BUL751'), 'BUL751');
+        assert.equal(sanitizeSlotValue('E-001'), 'E-001');
+    });
+
     it('produces only grammar-safe characters (no whitespace or JSON-structural chars)', () => {
         for (const input of ['Monica Gutmann', 'a.b@c,d', 'x\'y"z', 'café\nüber', 'a{b}c[d]:e']) {
             assert.doesNotMatch(sanitizeSlotValue(input), /[\s"{}[\]:,\\]/, `unsafe output for ${JSON.stringify(input)}`);

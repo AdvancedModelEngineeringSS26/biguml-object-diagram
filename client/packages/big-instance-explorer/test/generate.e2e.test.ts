@@ -55,7 +55,6 @@ const { shared, UmlDiagram } = createUmlDiagramServices(NodeFileSystem);
 const fixtureText = readFileSync(fileURLToPath(new URL('./fixtures/library-domain.uml', import.meta.url)), 'utf8');
 const tempDir = mkdtempSync(join(tmpdir(), 'biguml-e2e-'));
 const t = (n: any): string | undefined => n?.$type ?? n?.__type;
-const NUMERIC_OR_BOOL = new Set(['integer', 'real', 'boolean']);
 
 function assertIdSafe(id: string): void {
     assert.match(id, /^[A-Za-z_]/, `id "${id}" is digit-leading`);
@@ -155,11 +154,13 @@ describe('e2e: type-correct value generation from typed properties (patch level)
         );
     });
 
-    it('produces a type-correct value for each kind', () => {
+    it('produces a type-correct value for each kind (numeric/boolean carry a grammar-safe prefix)', () => {
+        // sanitizeSlotValue prefixes bare numbers/booleans with '_' so they survive the grammar.
+        const unwrap = (v?: string): string => (v ?? '').replace(/^_/, '');
         assert.ok((bySlot.get('title') ?? '').length > 0);
-        assert.ok(Number.isInteger(Number(bySlot.get('pageCount'))), `pageCount: ${bySlot.get('pageCount')}`);
-        assert.ok(!Number.isNaN(Number(bySlot.get('rating'))), `rating: ${bySlot.get('rating')}`);
-        assert.ok(['true', 'false'].includes(bySlot.get('available') ?? ''), `available: ${bySlot.get('available')}`);
+        assert.ok(Number.isInteger(Number(unwrap(bySlot.get('pageCount')))), `pageCount: ${bySlot.get('pageCount')}`);
+        assert.ok(!Number.isNaN(Number(unwrap(bySlot.get('rating')))), `rating: ${bySlot.get('rating')}`);
+        assert.ok(['true', 'false'].includes(unwrap(bySlot.get('available'))), `available: ${bySlot.get('available')}`);
         assert.ok(['AVAILABLE', 'BORROWED', 'LOST'].includes(bySlot.get('status') ?? ''), `status: ${bySlot.get('status')}`);
     });
 });
@@ -189,8 +190,8 @@ describe('e2e: end-to-end round-trip with constraints + links (grammar-safe valu
         const member = memberClass(baseDoc);
         const assoc = baseDoc.parseResult.value.diagram.relations.find((r: any) => t(r) === 'Association' && r.name === 'borrowedBy');
 
-        // Exclude numeric/boolean props (they cannot round-trip yet — see characterization test).
-        const properties = book.properties.map((p: any) => resolvePropertyView(p, path)).filter((p: PropertyView) => !NUMERIC_OR_BOOL.has(p.typeKind));
+        // All props, including numeric/boolean — sanitizeSlotValue prefixes those so they persist (§5.4).
+        const properties = book.properties.map((p: any) => resolvePropertyView(p, path));
         const view: ClassifierView = { id: book.__id, name: 'LibraryBook', documentUri: path, properties };
         const gen = buildGeneration([view], { count: 4, strategy: new RandomStrategy(), seed: 99, idFactory: createRandomUUID });
 
@@ -241,6 +242,14 @@ describe('e2e: end-to-end round-trip with constraints + links (grammar-safe valu
         }
     });
 
+    it('persists numeric/boolean values (grammar-safe prefixed) and they re-parse cleanly', () => {
+        const unwrap = (v?: string): string => (v ?? '').replace(/^_/, '');
+        for (const inst of genInstances) {
+            assert.ok(Number.isInteger(Number(unwrap(firstVal(inst, 'pageCount')))), `pageCount: ${firstVal(inst, 'pageCount')}`);
+            assert.ok(['true', 'false'].includes(unwrap(firstVal(inst, 'available'))), `available: ${firstVal(inst, 'available')}`);
+        }
+    });
+
     it('skips the read-only property (shelfCode has no slot)', () => {
         assert.ok(genInstances.every(i => !slot(i, 'shelfCode')));
     });
@@ -283,13 +292,13 @@ describe('e2e: end-to-end round-trip with constraints + links (grammar-safe valu
     });
 });
 
-describe('e2e: known limitation — bare numeric/boolean slot values do not round-trip', () => {
-    // Characterization test for the grammar issue (report §5.4): a generated Integer
-    // value is type-correct but the grammar lexes `63` as LANGIUM_INT, not LANGIUM_ID,
-    // so the document fails to parse. If a future escaped-value grammar fix lands, this
-    // test will start failing — a signal to relax the round-trip suite above.
-    it('an Integer value (e.g. 63) breaks re-parsing under the current grammar', async () => {
-        const path = join(tempDir, 'numeric-limitation.uml');
+describe('e2e: numeric/boolean slot values persist via the grammar-safe prefix (§5.4 workaround)', () => {
+    // The grammar lexes bare `63` as LANGIUM_INT (not LANGIUM_ID), which would corrupt the
+    // document. sanitizeSlotValue prefixes such values with '_' so they round-trip; the
+    // underlying number/boolean is recoverable by stripping the prefix. (A proper escaped-value
+    // grammar terminal would let us drop the prefix — see report §5.4.)
+    it('an Integer value is stored prefixed (e.g. _63) and re-parses with no errors', async () => {
+        const path = join(tempDir, 'numeric-prefix.uml');
         const baseDoc = await parse(fixtureText, path);
         const internal = internalOf(baseDoc);
         const book = bookClass(baseDoc);
@@ -297,9 +306,10 @@ describe('e2e: known limitation — bare numeric/boolean slot values do not roun
         const view: ClassifierView = { id: book.__id, name: 'LibraryBook', documentUri: path, properties: [resolvePropertyView(pageCount, path)] };
         const gen = buildGeneration([view], { count: 1, strategy: new RandomStrategy(), seed: 1, idFactory: createRandomUUID });
         const value = (gen.patch[0].value as any).slots[0].values[0].value;
-        assert.match(value, /^\d+$/, `expected a bare integer value, got ${value}`);
+        assert.match(value, /^_\d+$/, `expected a prefixed integer value, got ${value}`);
+        assert.ok(Number.isInteger(Number(value.replace(/^_/, ''))), 'underlying integer recoverable');
         const appliedDoc = await parse(applyPipeline(internal, gen.patch, path), path);
-        assert.ok((appliedDoc.parseResult.parserErrors?.length ?? 0) > 0, 'bare integer value unexpectedly round-tripped — grammar may have been fixed; relax the round-trip suite');
+        assert.equal(appliedDoc.parseResult.parserErrors?.length ?? 0, 0, 'prefixed numeric value must round-trip');
     });
 });
 

@@ -195,7 +195,19 @@ function isValueCompatible(property: PropertyView, value: string): boolean {
  */
 export function sanitizeSlotValue(value: string): string {
     const safe = value.replace(/[\s"{}[\]:,\\]+/g, '_').replace(/^_+|_+$/g, '');
-    return safe.length > 0 ? safe : 'value';
+    if (safe.length === 0) {
+        return 'value';
+    }
+    // The grammar stores slot values as a `LANGIUM_ID` token, which the (ordered, not
+    // longest-match) lexer shadows with `LANGIUM_INT` / `LANGIUM_BOOL` for bare numbers
+    // and booleans — so values like "121544", "3.14" or "true" fail to parse on reload
+    // and corrupt the document. Only a leading non-digit disqualifies the INT/BOOL token,
+    // so prefix such values with '_' (readable: `salary = _121544`). Proper fix: an
+    // escaped-value grammar terminal — see planning/feature-4-implementation-report.md §5.4.
+    if (/^-?\d+(\.\d+)?$/.test(safe) || safe === 'true' || safe === 'false') {
+        return `_${safe}`;
+    }
+    return safe;
 }
 
 function buildSlot(property: PropertyView, values: readonly string[], idFactory: () => string): Record<string, unknown> {
