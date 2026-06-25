@@ -205,13 +205,14 @@ export function GenerateDialog(props: GenerateDialogProps): ReactElement {
             ) : null}
 
             <label style={fieldStyle}>
-                <span style={labelStyle}>Association depth (0 = no links)</span>
+                <span style={labelStyle}>Association depth</span>
                 <input
                     min={0}
                     onChange={event => setAssociationDepth(Math.max(0, Number(event.target.value) || 0))}
                     type='number'
                     value={associationDepth}
                 />
+                <span style={hintStyle}>0 = no links · 1 = link the selected classifiers · 2+ = also generate &amp; link related classifiers (e.g. Company at 3 ⇒ Employees + Addresses)</span>
             </label>
 
             {associationDepth >= 1 ? (
@@ -326,6 +327,7 @@ const subtitleStyle: CSSProperties = { opacity: 0.75, fontSize: '11px', marginTo
 const closeButtonStyle: CSSProperties = { background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0 };
 const fieldStyle: CSSProperties = { display: 'grid', gap: '4px' };
 const labelStyle: CSSProperties = { fontSize: '11px', opacity: 0.85 };
+const hintStyle: CSSProperties = { fontSize: '10px', opacity: 0.6 };
 const mutedStyle: CSSProperties = { opacity: 0.7, fontSize: '11px' };
 const classifierPanelStyle: CSSProperties = {
     border: '1px solid var(--vscode-panel-border)',

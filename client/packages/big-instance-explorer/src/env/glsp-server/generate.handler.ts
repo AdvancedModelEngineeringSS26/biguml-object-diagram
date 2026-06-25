@@ -47,6 +47,7 @@ import {
     type PatchOperation,
     type PropertyView
 } from './generate.core.js';
+import { expandClassifierSelection } from './expand.core.js';
 import { planLinks, type AssociationView, type LinkPlanResult, type LinkableInstance } from './links.core.js';
 import { parseMultiplicity, resolveTypeKind, type TypeCategory } from './resolve.js';
 import { PatternStrategy } from './strategies/pattern.strategy.js';
@@ -311,7 +312,15 @@ interface RunResult {
 
 /** Resolves views and runs the pure generation + link planning for the given config. */
 function run(config: GenerationConfig, modelState: DiagramModelState): RunResult {
-    const classifierViews = config.classifierIds
+    const associationViews = resolveAssociationViews(modelState);
+    // "Association depth": at depth >= 2, also generate classifiers reachable transitively along
+    // associations (e.g. a Company at depth 3 also pulls in its Employees and their Addresses).
+    const expandedIds = expandClassifierSelection(
+        config.classifierIds,
+        associationViews.map(view => ({ sourceClassifierId: view.sourceClassifierId, targetClassifierId: view.targetClassifierId })),
+        config.associationDepth
+    );
+    const classifierViews = expandedIds
         .map(id => modelState.index.findIdElement(id))
         .filter(isInstantiableClassifier)
         .map(classifier => resolveClassifierView(classifier, modelState));
@@ -334,7 +343,7 @@ function run(config: GenerationConfig, modelState: DiagramModelState): RunResult
     // Pool = existing instances + the newly generated ones, so generated instances can be
     // linked to instances that already exist in the model (e.g. new Employees -> existing Company).
     const pool = [...collectExistingLinkableInstances(modelState), ...generated];
-    const links = planLinks(pool, resolveAssociationViews(modelState), {
+    const links = planLinks(pool, associationViews, {
         depth: config.associationDepth,
         seed: config.seed,
         // When the user asks for links (depth >= 1), guarantee at least one per source so
