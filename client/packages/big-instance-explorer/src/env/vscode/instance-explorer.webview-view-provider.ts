@@ -26,6 +26,7 @@ import {
     GeneratableClassifiersResponse,
     GenerateInstancesPreviewResponse,
     InstanceExplorerDataResponse,
+    RequestGeneratableClassifiersAction,
     RequestInstanceExplorerDataAction,
     SaveExportedInstancesResponse
 } from '../common/index.js';
@@ -107,6 +108,10 @@ export class InstanceExplorerWebviewViewProvider extends WebviewViewProvider {
 
     protected requestData(): void {
         this.actionDispatcher.dispatch(RequestInstanceExplorerDataAction.create());
+        // Refresh the generatable classifiers/associations too, so the "Generate Test Data" dialog
+        // always reflects the active diagram (and any class-diagram edits) instead of a cached/stale
+        // set from a previously opened model.
+        this.actionDispatcher.dispatch(RequestGeneratableClassifiersAction.create());
     }
 
     protected dispatchSelectionChange(): void {
