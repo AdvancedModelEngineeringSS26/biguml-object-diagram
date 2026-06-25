@@ -177,6 +177,17 @@ describe('buildGeneration — multi-valued attributes', () => {
         assert.ok(slot.values.length >= 1 && slot.values.length <= 5, `got ${slot.values.length}`);
     });
 
+    it('emits multi-values in generation order (isOrdered honoured by construction)', () => {
+        let n = 0;
+        const seq: ValueStrategy = { kind: 'seq', value: () => `v${++n}` };
+        const doc = classifier({ name: 'Doc', properties: [pv('lines', { lowerBound: 3, upperBound: 3 })] });
+        const slot = (instanceOps(buildGeneration([doc], { count: 1, strategy: seq, idFactory: counter() }).patch)[0] as AnyRecord).slots[0];
+        assert.deepEqual(
+            (slot.values as AnyRecord[]).map(v => v.value),
+            ['v1', 'v2', 'v3']
+        );
+    });
+
     it('honors isUnique within a multi-valued slot (no duplicate values)', () => {
         let calls = 0;
         const cycle: ValueStrategy = { kind: 'cycle', value: () => ['A', 'B'][calls++ % 2] };
@@ -251,5 +262,13 @@ describe('extractPreviewSample', () => {
         const person = classifier({ name: 'Person', properties: [pv('name')] });
         const result = buildGeneration([person], { count: 5, strategy: new RandomStrategy(), seed: 1, idFactory: counter() });
         assert.equal(extractPreviewSample(result.patch, 2).length, 2);
+    });
+
+    it('joins multi-valued slots with a comma in the preview', () => {
+        let n = 0;
+        const seq: ValueStrategy = { kind: 'seq', value: () => `v${++n}` };
+        const doc = classifier({ name: 'Doc', properties: [pv('lines', { lowerBound: 2, upperBound: 2 })] });
+        const sample = extractPreviewSample(buildGeneration([doc], { count: 1, strategy: seq, idFactory: counter() }).patch, 10);
+        assert.equal(sample[0].slots[0].value, 'v1, v2');
     });
 });
