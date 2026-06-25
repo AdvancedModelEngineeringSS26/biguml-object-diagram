@@ -261,7 +261,7 @@ export function buildGeneration(classifiers: readonly ClassifierView[], config: 
                     continue;
                 }
 
-                const ctx: ValueContext = { rng, index };
+                const ctx: ValueContext = { rng, index, classifierId: classifier.id };
                 let value = config.strategy.value(property, ctx);
 
                 if (value !== undefined && property.isUnique) {

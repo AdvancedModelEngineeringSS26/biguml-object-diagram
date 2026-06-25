@@ -30,8 +30,10 @@ import { inject, injectable } from 'inversify';
 import { streamAst } from 'langium';
 import { URI } from 'vscode-uri';
 import {
+    GeneratableClassifiersResponse,
     GenerateInstancesOperation,
     GenerateInstancesPreviewResponse,
+    RequestGeneratableClassifiersAction,
     RequestGenerateInstancesPreviewAction,
     type GenerationConfig,
     type GenerationResultSummary
@@ -370,5 +372,33 @@ export class GenerateInstancesPreviewActionHandler implements ActionHandler {
     execute(action: RequestGenerateInstancesPreviewAction): MaybePromise<GenerateInstancesPreviewResponse[]> {
         const summary = summarize(run(action.config, this.modelState));
         return [GenerateInstancesPreviewResponse.create({ responseId: action.requestId, summary })];
+    }
+}
+
+/** Returns the instantiable classifiers and their generatable (non-read-only) properties for the UI. */
+@injectable()
+export class GeneratableClassifiersActionHandler implements ActionHandler {
+    actionKinds = [RequestGeneratableClassifiersAction.KIND];
+
+    @inject(DiagramModelState)
+    protected readonly modelState: DiagramModelState;
+
+    execute(action: RequestGeneratableClassifiersAction): MaybePromise<GeneratableClassifiersResponse[]> {
+        const seen = new Set<string>();
+        const classifiers = [];
+        for (const node of streamAst(this.modelState.semanticRoot)) {
+            if (!isInstantiableClassifier(node) || seen.has(node.__id)) {
+                continue;
+            }
+            seen.add(node.__id);
+            const view = resolveClassifierView(node, this.modelState);
+            classifiers.push({
+                classifierId: view.id,
+                classifierName: view.name,
+                properties: view.properties.filter(p => !p.isReadOnly).map(p => ({ name: p.name, typeName: p.typeName }))
+            });
+        }
+        classifiers.sort((left, right) => left.classifierName.localeCompare(right.classifierName));
+        return [GeneratableClassifiersResponse.create({ responseId: action.requestId, classifiers })];
     }
 }

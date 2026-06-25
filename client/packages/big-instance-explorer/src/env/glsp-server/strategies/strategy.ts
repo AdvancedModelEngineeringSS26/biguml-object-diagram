@@ -40,6 +40,8 @@ export interface ValueContext {
     rng: Rng;
     /** 1-based index of the instance currently being generated (e.g. for `{n}` patterns). */
     index: number;
+    /** `__id` of the classifier being instantiated; lets strategies use per-classifier config. */
+    classifierId?: string;
 }
 
 /**

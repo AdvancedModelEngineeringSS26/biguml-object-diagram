@@ -53,6 +53,57 @@ export interface GenerationResultSummary {
     sample: PreviewInstanceSample[];
 }
 
+export interface GeneratableProperty {
+    name: string;
+    typeName?: string;
+}
+
+export interface GeneratableClassifier {
+    classifierId: string;
+    classifierName: string;
+    properties: GeneratableProperty[];
+}
+
+/** Requests the instantiable classifiers and their (generatable) properties, for the generation UI. */
+export interface RequestGeneratableClassifiersAction extends RequestAction<GeneratableClassifiersResponse> {
+    kind: typeof RequestGeneratableClassifiersAction.KIND;
+}
+
+export namespace RequestGeneratableClassifiersAction {
+    export const KIND = 'requestGeneratableClassifiers';
+
+    export function is(object: unknown): object is RequestGeneratableClassifiersAction {
+        return RequestAction.hasKind(object, KIND);
+    }
+
+    export function create(options: { requestId?: string } = {}): RequestGeneratableClassifiersAction {
+        return { kind: KIND, requestId: options.requestId ?? '' };
+    }
+}
+
+export interface GeneratableClassifiersResponse extends ResponseAction {
+    kind: typeof GeneratableClassifiersResponse.KIND;
+    classifiers: GeneratableClassifier[];
+}
+
+export namespace GeneratableClassifiersResponse {
+    export const KIND = 'generatableClassifiersResponse';
+
+    export function is(object: unknown): object is GeneratableClassifiersResponse {
+        return Action.hasKind(object, KIND);
+    }
+
+    export function create(
+        options?: Omit<GeneratableClassifiersResponse, 'kind' | 'responseId'> & { responseId?: string }
+    ): GeneratableClassifiersResponse {
+        return {
+            kind: KIND,
+            responseId: options?.responseId ?? '',
+            classifiers: options?.classifiers ?? []
+        };
+    }
+}
+
 /**
  * Apply operation: creates the generated instances/slots/links as a single
  * atomic model change (one undo reverts the whole generation).

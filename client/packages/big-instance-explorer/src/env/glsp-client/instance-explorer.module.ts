@@ -12,6 +12,7 @@ import { ExtensionActionKind } from '@eclipse-glsp/vscode-integration-webview/li
 import {
     AvailableExportTemplatesResponse,
     ExportInstancesResponse,
+    GeneratableClassifiersResponse,
     GenerateInstancesPreviewResponse,
     InstanceExplorerDataResponse,
     SaveExportedInstancesResponse
@@ -23,4 +24,5 @@ export const instanceExplorerModule = new FeatureModule(bind => {
     bind(ExtensionActionKind).toConstantValue(ExportInstancesResponse.KIND);
     bind(ExtensionActionKind).toConstantValue(SaveExportedInstancesResponse.KIND);
     bind(ExtensionActionKind).toConstantValue(GenerateInstancesPreviewResponse.KIND);
+    bind(ExtensionActionKind).toConstantValue(GeneratableClassifiersResponse.KIND);
 });
