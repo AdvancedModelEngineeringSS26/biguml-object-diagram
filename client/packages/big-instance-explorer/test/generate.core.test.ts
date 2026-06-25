@@ -259,7 +259,7 @@ describe('extractPreviewSample', () => {
     it('summarizes generated instances into name/classifier/slot values', () => {
         const person = classifier({ name: 'Person', properties: [pv('name'), pv('age', { typeKind: 'integer' })] });
         const result = buildGeneration([person], { count: 1, strategy: constStrategy('X'), idFactory: counter() });
-        const sample = extractPreviewSample(result.patch, 10);
+        const sample = extractPreviewSample(result.patch, 5, 25);
         assert.equal(sample.length, 1);
         assert.equal(sample[0].classifierName, 'Person');
         assert.match(sample[0].name, /person_/);
@@ -272,17 +272,34 @@ describe('extractPreviewSample', () => {
         );
     });
 
-    it('respects the limit', () => {
+    it('respects the per-classifier limit', () => {
         const person = classifier({ name: 'Person', properties: [pv('name')] });
         const result = buildGeneration([person], { count: 5, strategy: new RandomStrategy(), seed: 1, idFactory: counter() });
-        assert.equal(extractPreviewSample(result.patch, 2).length, 2);
+        assert.equal(extractPreviewSample(result.patch, 2, 25).length, 2);
+    });
+
+    it('samples each classifier (stratified), not just the first', () => {
+        const person = classifier({ name: 'Person', properties: [pv('name')] });
+        const address = classifier({ name: 'Address', properties: [pv('city')] });
+        // 10 of each; a flat "first 10" would show only Person — stratified must include both.
+        const result = buildGeneration([person, address], { count: 10, strategy: new RandomStrategy(), seed: 1, idFactory: counter() });
+        const sample = extractPreviewSample(result.patch, 3, 25);
+        assert.equal(sample.filter(s => s.classifierName === 'Person').length, 3);
+        assert.equal(sample.filter(s => s.classifierName === 'Address').length, 3);
+    });
+
+    it('caps the total sample size across classifiers', () => {
+        const classifiers = ['A1', 'B2', 'C3', 'D4'].map(name => classifier({ name, properties: [pv('p')] }));
+        const result = buildGeneration(classifiers, { count: 10, strategy: new RandomStrategy(), seed: 1, idFactory: counter() });
+        // 4 classifiers × up to 5 = 20, but capped at 14 overall.
+        assert.equal(extractPreviewSample(result.patch, 5, 14).length, 14);
     });
 
     it('joins multi-valued slots with a comma in the preview', () => {
         let n = 0;
         const seq: ValueStrategy = { kind: 'seq', value: () => `v${++n}` };
         const doc = classifier({ name: 'Doc', properties: [pv('lines', { lowerBound: 2, upperBound: 2 })] });
-        const sample = extractPreviewSample(buildGeneration([doc], { count: 1, strategy: seq, idFactory: counter() }).patch, 10);
+        const sample = extractPreviewSample(buildGeneration([doc], { count: 1, strategy: seq, idFactory: counter() }).patch, 5, 25);
         assert.equal(sample[0].slots[0].value, 'v1, v2');
     });
 });

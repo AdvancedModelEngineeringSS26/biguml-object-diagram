@@ -142,6 +142,13 @@ export function InstanceExplorer(): ReactElement {
             setUnclassified(action.unclassified);
             setManyToManyRelations(action.manyToManyRelations ?? []);
             setAvailableForInstantiation(action.availableForInstantiation ?? { classifiers: [], associations: [] });
+            // The diagram/model just changed (e.g. a different .uml was opened): drop transient state
+            // that referenced the previous diagram so nothing stale is shown. The generatable
+            // classifiers are refreshed by the provider (see requestData), so they replace themselves.
+            setGeneratePreview(undefined);
+            setEditState(undefined);
+            setLinkEditState(undefined);
+            setSelectedInstanceId(undefined);
         });
     }, [listenAction]);
 

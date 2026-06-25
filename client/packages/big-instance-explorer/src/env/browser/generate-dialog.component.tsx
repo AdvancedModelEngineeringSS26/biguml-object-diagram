@@ -297,22 +297,38 @@ export function GenerateDialog(props: GenerateDialogProps): ReactElement {
                     <div>
                         {props.preview.instanceCount} instance(s), {props.preview.slotCount} slot(s), {props.preview.linkCount} link(s).
                     </div>
-                    {props.preview.sample.length > 0 ? (
-                        <div style={sampleListStyle}>
-                            {props.preview.sample.map((instance, index) => (
-                                <div key={`${instance.name}-${index}`} style={sampleInstanceStyle}>
-                                    <div style={sampleHeaderStyle}>
-                                        {instance.name} : {instance.classifierName}
-                                    </div>
-                                    {instance.slots.map((slot, slotIndex) => (
-                                        <div key={`${slot.feature}-${slotIndex}`} style={sampleSlotStyle}>
-                                            {slot.feature} = {slot.value}
-                                        </div>
-                                    ))}
-                                </div>
-                            ))}
+                    {props.preview.perClassifier.length > 0 ? (
+                        <div style={hintStyle}>
+                            {props.preview.perClassifier.map(entry => `${entry.classifierName}: ${entry.instanceCount}`).join(' · ')}
                         </div>
                     ) : null}
+                    {props.preview.sample.length > 0
+                        ? props.preview.perClassifier
+                              .map(entry => ({
+                                  entry,
+                                  samples: props.preview!.sample.filter(instance => instance.classifierName === entry.classifierName)
+                              }))
+                              .filter(group => group.samples.length > 0)
+                              .map(group => (
+                                  <div key={group.entry.classifierName} style={sampleListStyle}>
+                                      <div style={hintStyle}>
+                                          {group.entry.classifierName} — showing {group.samples.length} of {group.entry.instanceCount}
+                                      </div>
+                                      {group.samples.map((instance, index) => (
+                                          <div key={`${instance.name}-${index}`} style={sampleInstanceStyle}>
+                                              <div style={sampleHeaderStyle}>
+                                                  {instance.name} : {instance.classifierName}
+                                              </div>
+                                              {instance.slots.map((slot, slotIndex) => (
+                                                  <div key={`${slot.feature}-${slotIndex}`} style={sampleSlotStyle}>
+                                                      {slot.feature} = {slot.value}
+                                                  </div>
+                                              ))}
+                                          </div>
+                                      ))}
+                                  </div>
+                              ))
+                        : null}
                     {props.preview.diagnostics.length > 0 ? (
                         <ul style={diagnosticsListStyle}>
                             {props.preview.diagnostics.map((diagnostic, index) => (
