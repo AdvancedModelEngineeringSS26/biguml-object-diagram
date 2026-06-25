@@ -36,6 +36,7 @@ import {
     type DiagnosticSummary,
     type EligibleInstance,
     type ExportTemplateSummary,
+    type GeneratableAssociation,
     type GeneratableClassifier,
     type GenerationConfig,
     type GenerationResultSummary,
@@ -98,6 +99,7 @@ export function InstanceExplorer(): ReactElement {
     const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
     const [generatePreview, setGeneratePreview] = useState<GenerationResultSummary | undefined>();
     const [generatableClassifiers, setGeneratableClassifiers] = useState<GeneratableClassifier[]>([]);
+    const [generatableAssociations, setGeneratableAssociations] = useState<GeneratableAssociation[]>([]);
 
     useEffect(() => {
         listenAction(action => {
@@ -129,6 +131,7 @@ export function InstanceExplorer(): ReactElement {
 
                 if (GeneratableClassifiersResponse.is(action)) {
                     setGeneratableClassifiers(action.classifiers);
+                    setGeneratableAssociations(action.associations);
                     return;
                 }
 
@@ -913,6 +916,7 @@ export function InstanceExplorer(): ReactElement {
 
             {isGenerateDialogOpen ? (
                 <GenerateDialog
+                    associations={generatableAssociations}
                     classifiers={generatableClassifiers}
                     onClose={() => setIsGenerateDialogOpen(false)}
                     onGenerate={(config: GenerationConfig) => {

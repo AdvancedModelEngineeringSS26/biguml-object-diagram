@@ -59,6 +59,12 @@ export interface LinkPlanOptions {
      * When omitted, every instance can act as a source.
      */
     sourceIds?: ReadonlySet<string>;
+    /**
+     * Optional `associationId` → target `instanceId`. For those associations every source is
+     * linked to that one specific (e.g. existing) instance instead of randomly chosen targets.
+     * If the id is not found in the pool, the association falls back to automatic selection.
+     */
+    fixedTargets?: Record<string, string>;
     /** Id generator; injectable for deterministic tests (default random UUID). */
     idFactory?: () => string;
 }
@@ -149,6 +155,27 @@ export function planLinks(
         const sources = options.sourceIds ? allSources.filter(source => options.sourceIds!.has(source.id)) : allSources;
         const targets = byClassifier.get(association.targetClassifierId) ?? [];
         if (sources.length === 0 || targets.length === 0) {
+            continue;
+        }
+
+        // Fixed target chosen for this association: link every source to that one instance.
+        const fixedTargetId = options.fixedTargets?.[association.id];
+        const fixedTarget = fixedTargetId ? targets.find(target => target.id === fixedTargetId) : undefined;
+        if (fixedTarget) {
+            for (const source of sources) {
+                if (source.id === fixedTarget.id) {
+                    continue;
+                }
+                const id = idFactory();
+                patch.push({ op: 'add', path: '/diagram/relations/-', value: buildLink(association, source, fixedTarget, id) });
+                links.push({
+                    id,
+                    name: association.name ?? association.id,
+                    associationId: association.id,
+                    sourceInstanceId: source.id,
+                    targetInstanceId: fixedTarget.id
+                });
+            }
             continue;
         }
 

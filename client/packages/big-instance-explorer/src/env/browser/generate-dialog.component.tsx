@@ -9,6 +9,7 @@
 import { useMemo, useState, type CSSProperties, type ReactElement } from 'react';
 import {
     suggestPattern,
+    type GeneratableAssociation,
     type GeneratableClassifier,
     type GenerationConfig,
     type GenerationResultSummary,
@@ -17,6 +18,7 @@ import {
 
 interface GenerateDialogProps {
     classifiers: GeneratableClassifier[];
+    associations: GeneratableAssociation[];
     preview?: GenerationResultSummary;
     onClose: () => void;
     onPreview: (config: GenerationConfig) => void;
@@ -36,6 +38,8 @@ export function GenerateDialog(props: GenerateDialogProps): ReactElement {
     const [patternEdits, setPatternEdits] = useState<Record<string, Record<string, string>>>({});
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
     const [associationDepth, setAssociationDepth] = useState(1);
+    // associationId -> chosen existing target instanceId ('' = automatic).
+    const [linkTargets, setLinkTargets] = useState<Record<string, string>>({});
     const [seedText, setSeedText] = useState('');
 
     const effectivePattern = (classifier: GeneratableClassifier, property: string): string =>
@@ -61,16 +65,31 @@ export function GenerateDialog(props: GenerateDialogProps): ReactElement {
                 }
             }
         }
+        let chosenLinkTargets: Record<string, string> | undefined;
+        if (associationDepth >= 1) {
+            const entries = Object.entries(linkTargets).filter(([, instanceId]) => instanceId.length > 0);
+            if (entries.length > 0) {
+                chosenLinkTargets = Object.fromEntries(entries);
+            }
+        }
         return {
             classifierIds: selectedIds,
             countPerClassifier: count,
             strategy,
             patterns,
             associationDepth,
+            linkTargets: chosenLinkTargets,
             seed: seedText.trim().length > 0 ? Number(seedText) : undefined
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedIds, count, strategy, patternEdits, associationDepth, seedText, props.classifiers]);
+    }, [selectedIds, count, strategy, patternEdits, associationDepth, linkTargets, seedText, props.classifiers]);
+
+    const classifierName = (id: string): string =>
+        props.classifiers.find(classifier => classifier.classifierId === id)?.classifierName ?? id;
+    // Associations whose source classifier is selected and that have existing target instances to pin.
+    const relevantAssociations = props.associations.filter(
+        association => selectedIds.includes(association.sourceClassifierId) && association.targets.length > 0
+    );
 
     const invalid = selectedIds.length === 0 || count < 1 || (seedText.trim().length > 0 && Number.isNaN(Number(seedText)));
 
@@ -176,6 +195,33 @@ export function GenerateDialog(props: GenerateDialogProps): ReactElement {
                     value={associationDepth}
                 />
             </label>
+
+            {associationDepth >= 1 && relevantAssociations.length > 0 ? (
+                <div style={fieldStyle}>
+                    <span style={labelStyle}>Link targets (choose a specific existing instance, or Auto)</span>
+                    {relevantAssociations.map(association => (
+                        <label key={association.associationId} style={patternRowStyle}>
+                            <span style={patternPropStyle} title={`${classifierName(association.sourceClassifierId)} → ${classifierName(association.targetClassifierId)}`}>
+                                {association.associationName}
+                            </span>
+                            <select
+                                onChange={event =>
+                                    setLinkTargets(current => ({ ...current, [association.associationId]: event.target.value }))
+                                }
+                                style={patternInputStyle}
+                                value={linkTargets[association.associationId] ?? ''}
+                            >
+                                <option value=''>Auto (random eligible)</option>
+                                {association.targets.map(target => (
+                                    <option key={target.instanceId} value={target.instanceId}>
+                                        {target.instanceName}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                    ))}
+                </div>
+            ) : null}
 
             <label style={fieldStyle}>
                 <span style={labelStyle}>Seed (optional, for reproducible output)</span>

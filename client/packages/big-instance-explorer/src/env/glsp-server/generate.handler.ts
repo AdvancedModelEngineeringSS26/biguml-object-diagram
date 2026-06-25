@@ -317,6 +317,8 @@ function run(config: GenerationConfig, modelState: DiagramModelState): RunResult
         // Only originate links from the newly generated instances; never add links to
         // pre-existing instances' source ends.
         sourceIds: new Set(generated.map(instance => instance.id)),
+        // Per-association chosen existing target instances (UI), else automatic selection.
+        fixedTargets: config.linkTargets,
         idFactory: createRandomUUID
     });
 
@@ -399,6 +401,25 @@ export class GeneratableClassifiersActionHandler implements ActionHandler {
             });
         }
         classifiers.sort((left, right) => left.classifierName.localeCompare(right.classifierName));
-        return [GeneratableClassifiersResponse.create({ responseId: action.requestId, classifiers })];
+
+        // Existing instances grouped by classifier, to offer as link targets per association.
+        const instancesByClassifier = new Map<string, LinkableInstance[]>();
+        for (const instance of collectExistingLinkableInstances(this.modelState)) {
+            const list = instancesByClassifier.get(instance.classifierId) ?? [];
+            list.push(instance);
+            instancesByClassifier.set(instance.classifierId, list);
+        }
+        const associations = resolveAssociationViews(this.modelState).map(association => ({
+            associationId: association.id,
+            associationName: association.name ?? association.id,
+            sourceClassifierId: association.sourceClassifierId,
+            targetClassifierId: association.targetClassifierId,
+            targets: (instancesByClassifier.get(association.targetClassifierId) ?? []).map(instance => ({
+                instanceId: instance.id,
+                instanceName: instance.name
+            }))
+        }));
+
+        return [GeneratableClassifiersResponse.create({ responseId: action.requestId, classifiers, associations })];
     }
 }

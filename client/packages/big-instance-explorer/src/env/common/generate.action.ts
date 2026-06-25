@@ -23,6 +23,8 @@ export interface GenerationConfig {
     patterns?: Record<string, Record<string, string>>;
     /** How deeply to follow associations (0 = no links, >= 1 = direct associations). */
     associationDepth: number;
+    /** Optional `associationId` -> chosen existing target `instanceId` (else automatic target selection). */
+    linkTargets?: Record<string, string>;
     /** Optional seed for reproducible generation. */
     seed?: number;
 }
@@ -64,6 +66,20 @@ export interface GeneratableClassifier {
     properties: GeneratableProperty[];
 }
 
+export interface GeneratableAssociationTarget {
+    instanceId: string;
+    instanceName: string;
+}
+
+/** An association whose source classifier can be generated, with the existing instances available as link targets. */
+export interface GeneratableAssociation {
+    associationId: string;
+    associationName: string;
+    sourceClassifierId: string;
+    targetClassifierId: string;
+    targets: GeneratableAssociationTarget[];
+}
+
 /** Requests the instantiable classifiers and their (generatable) properties, for the generation UI. */
 export interface RequestGeneratableClassifiersAction extends RequestAction<GeneratableClassifiersResponse> {
     kind: typeof RequestGeneratableClassifiersAction.KIND;
@@ -84,6 +100,7 @@ export namespace RequestGeneratableClassifiersAction {
 export interface GeneratableClassifiersResponse extends ResponseAction {
     kind: typeof GeneratableClassifiersResponse.KIND;
     classifiers: GeneratableClassifier[];
+    associations: GeneratableAssociation[];
 }
 
 export namespace GeneratableClassifiersResponse {
@@ -99,7 +116,8 @@ export namespace GeneratableClassifiersResponse {
         return {
             kind: KIND,
             responseId: options?.responseId ?? '',
-            classifiers: options?.classifiers ?? []
+            classifiers: options?.classifiers ?? [],
+            associations: options?.associations ?? []
         };
     }
 }

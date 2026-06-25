@@ -172,6 +172,35 @@ describe('planLinks', () => {
         assert.deepEqual(run(), run());
     });
 
+    it('links every source to a fixed target when one is chosen for the association', () => {
+        const employees = [inst('e1', 'e1', 'Employee'), inst('e2', 'e2', 'Employee')];
+        const companies = [inst('c1', 'c1', 'Company'), inst('c2', 'c2', 'Company')];
+        const worksFor = assoc({ id: 'wf', sourceClassifierId: 'Employee', targetClassifierId: 'Company', targetLowerBound: 0, targetUpperBound: undefined });
+        const result = planLinks([...employees, ...companies], [worksFor], {
+            depth: 1,
+            seed: 1,
+            sourceIds: new Set(['e1', 'e2']),
+            fixedTargets: { wf: 'c2' },
+            idFactory: counter()
+        });
+        const ops = linkOps(result.patch);
+        assert.equal(ops.length, 2);
+        for (const link of ops) {
+            assert.equal(link.target.ref.__id, 'c2');
+            assert.ok(['e1', 'e2'].includes(link.source.ref.__id));
+        }
+    });
+
+    it('falls back to automatic targets when the fixed target id is not found', () => {
+        const result = planLinks([...persons, ...addresses], [assoc({ id: 'A', targetLowerBound: 1, targetUpperBound: 1 })], {
+            depth: 1,
+            seed: 1,
+            fixedTargets: { A: 'does-not-exist' },
+            idFactory: counter()
+        });
+        assert.equal(linkOps(result.patch).length, persons.length);
+    });
+
     it('minPerSource forces a link per source for an optional (0..*) association even with a single target', () => {
         const manyPersons = Array.from({ length: 10 }, (_unused, i) => inst(`p${i}`, `p${i}`, 'P'));
         const oneAddress = [inst('a1', 'a1', 'Addr')];
