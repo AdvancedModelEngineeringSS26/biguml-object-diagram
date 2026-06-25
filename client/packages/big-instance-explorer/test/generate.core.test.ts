@@ -22,7 +22,8 @@ function counter(prefix = 'id'): () => string {
 }
 
 function pv(name: string, over: Partial<PropertyView> = {}): PropertyView {
-    return { id: `${name}-pid`, name, typeKind: 'string', documentUri: 'mem://test', ...over };
+    // Default to single-valued (upperBound 1) unless a test opts into multi-valued.
+    return { id: `${name}-pid`, name, typeKind: 'string', documentUri: 'mem://test', upperBound: 1, ...over };
 }
 
 function classifier(over: Partial<ClassifierView> & Pick<ClassifierView, 'name'>): ClassifierView {
@@ -151,6 +152,39 @@ describe('buildGeneration', () => {
         assert.equal(result.instances.length, 4);
         assert.equal(result.instances.filter(i => i.classifierName === 'Person').length, 2);
         assert.equal(result.instances.filter(i => i.classifierName === 'Address').length, 2);
+    });
+});
+
+describe('buildGeneration — multi-valued attributes', () => {
+    it('keeps a single value for single-valued (upperBound <= 1) properties', () => {
+        const person = classifier({ name: 'Person', properties: [pv('name', { upperBound: 1 })] });
+        const slot = (instanceOps(buildGeneration([person], { count: 1, strategy: new RandomStrategy(), seed: 1, idFactory: counter() }).patch)[0] as AnyRecord).slots[0];
+        assert.equal(slot.values.length, 1);
+    });
+
+    it('generates several values for a multi-valued attribute, within [lower, upper]', () => {
+        const person = classifier({ name: 'Person', properties: [pv('tags', { lowerBound: 2, upperBound: 3 })] });
+        const slot = (instanceOps(buildGeneration([person], { count: 1, strategy: new RandomStrategy(), seed: 4, idFactory: counter() }).patch)[0] as AnyRecord).slots[0];
+        assert.ok(slot.values.length >= 2 && slot.values.length <= 3, `got ${slot.values.length}`);
+        for (let i = 0; i < slot.values.length; i++) {
+            assert.equal(slot.values[i].name, `value${i + 1}`);
+        }
+    });
+
+    it('caps an unbounded (*) multi-valued attribute', () => {
+        const person = classifier({ name: 'Person', properties: [pv('tags', { lowerBound: 0, upperBound: undefined })] });
+        const slot = (instanceOps(buildGeneration([person], { count: 1, strategy: new RandomStrategy(), seed: 2, idFactory: counter() }).patch)[0] as AnyRecord).slots[0];
+        assert.ok(slot.values.length >= 1 && slot.values.length <= 5, `got ${slot.values.length}`);
+    });
+
+    it('honors isUnique within a multi-valued slot (no duplicate values)', () => {
+        let calls = 0;
+        const cycle: ValueStrategy = { kind: 'cycle', value: () => ['A', 'B'][calls++ % 2] };
+        const tag = classifier({ name: 'Tag', properties: [pv('code', { lowerBound: 1, upperBound: 5, isUnique: true })] });
+        const slot = (instanceOps(buildGeneration([tag], { count: 1, strategy: cycle, idFactory: counter() }).patch)[0] as AnyRecord).slots[0];
+        const values = (slot.values as AnyRecord[]).map(v => v.value);
+        assert.equal(new Set(values).size, values.length, `duplicates in ${JSON.stringify(values)}`);
+        assert.ok(values.length <= 2);
     });
 });
 

@@ -31,6 +31,10 @@ export interface PropertyView extends PropertyDescriptor {
     documentUri?: string;
     /** Whether the property is required (lower multiplicity bound >= 1). */
     required?: boolean;
+    /** Lower multiplicity bound (default 1 when omitted). */
+    lowerBound?: number;
+    /** Upper multiplicity bound; `undefined` means unbounded (`*`), so multi-valued. */
+    upperBound?: number;
 }
 
 /** A classifier selected for instantiation, with its resolved (incl. inherited) properties. */
@@ -131,7 +135,7 @@ export function extractPreviewSample(patch: readonly PatchOperation[], limit: nu
             classifierName: instance.classifier?.$refText ?? '',
             slots: (instance.slots ?? []).map(slot => ({
                 feature: slot.name ?? '',
-                value: slot.values?.[0]?.value ?? ''
+                value: (slot.values ?? []).map(literal => literal.value ?? '').join(', ')
             }))
         });
     }
@@ -139,6 +143,22 @@ export function extractPreviewSample(patch: readonly PatchOperation[], limit: nu
 }
 
 const DEFAULT_UNIQUENESS_RETRIES = 8;
+/** Cap on how many values to generate for a multi-valued attribute (bounds the unbounded `*` case). */
+const MULTI_VALUE_CAP = 5;
+/** Default number of values for an unbounded (`*`) multi-valued attribute. */
+const MULTI_VALUE_DEFAULT_MAX = 3;
+
+/** How many slot values to generate for a property, from its multiplicity bounds. */
+function valueCount(property: PropertyView, rng: ReturnType<typeof createRng>): number {
+    const upper = property.upperBound;
+    // Single-valued unless the upper bound is unbounded or > 1.
+    if (upper !== undefined && upper <= 1) {
+        return 1;
+    }
+    const maxValues = Math.min(upper ?? MULTI_VALUE_DEFAULT_MAX, MULTI_VALUE_CAP);
+    const minValues = Math.min(Math.max(property.lowerBound ?? 1, 1), maxValues);
+    return minValues >= maxValues ? maxValues : rng.int(minValues, maxValues);
+}
 
 /** Whether a generated string value is compatible with the property's declared type. */
 function isValueCompatible(property: PropertyView, value: string): boolean {
@@ -178,7 +198,7 @@ export function sanitizeSlotValue(value: string): string {
     return safe.length > 0 ? safe : 'value';
 }
 
-function buildSlot(property: PropertyView, value: string, idFactory: () => string): Record<string, unknown> {
+function buildSlot(property: PropertyView, values: readonly string[], idFactory: () => string): Record<string, unknown> {
     return {
         $type: 'Slot',
         __id: idFactory(),
@@ -187,14 +207,13 @@ function buildSlot(property: PropertyView, value: string, idFactory: () => strin
             ref: { __id: property.id, __documentUri: property.documentUri },
             $refText: property.name
         },
-        values: [
-            {
-                $type: 'LiteralSpecification',
-                __id: idFactory(),
-                name: 'value1',
-                value: sanitizeSlotValue(value)
-            }
-        ]
+        // isOrdered is honoured by construction: values are emitted in generation order.
+        values: values.map((value, index) => ({
+            $type: 'LiteralSpecification',
+            __id: idFactory(),
+            name: `value${index + 1}`,
+            value: sanitizeSlotValue(value)
+        }))
     };
 }
 
@@ -262,31 +281,61 @@ export function buildGeneration(classifiers: readonly ClassifierView[], config: 
                 }
 
                 const ctx: ValueContext = { rng, index, classifierId: classifier.id };
-                let value = config.strategy.value(property, ctx);
+                const count = valueCount(property, rng);
+                const seen = property.isUnique ? seenValuesByProperty.get(property.name) ?? new Set<string>() : undefined;
+                const slotValues: string[] = [];
+                let typeMismatchReported = false;
 
-                if (value !== undefined && property.isUnique) {
-                    const seen = seenValuesByProperty.get(property.name) ?? new Set<string>();
-                    let attempts = 0;
-                    while (value !== undefined && seen.has(value) && attempts < retries) {
-                        value = config.strategy.value(property, ctx);
-                        attempts++;
+                for (let valueIndex = 0; valueIndex < count; valueIndex++) {
+                    let value = config.strategy.value(property, ctx);
+                    if (value === undefined) {
+                        break;
                     }
-                    if (value !== undefined && seen.has(value)) {
+
+                    if (seen) {
+                        let attempts = 0;
+                        while ((seen.has(value) || slotValues.includes(value)) && attempts < retries) {
+                            const next = config.strategy.value(property, ctx);
+                            if (next === undefined) {
+                                break;
+                            }
+                            value = next;
+                            attempts++;
+                        }
+                        if (seen.has(value) || slotValues.includes(value)) {
+                            // Could not produce a distinct value: keep the first one best-effort, else stop adding.
+                            if (slotValues.length > 0) {
+                                break;
+                            }
+                            diagnostics.push({
+                                code: 'UNIQUENESS_BEST_EFFORT',
+                                severity: 'warning',
+                                classifierName: classifier.name,
+                                propertyName: property.name,
+                                message: `Could not generate a unique value for ${classifier.name}.${property.name}; a duplicate was kept.`
+                            });
+                        }
+                    }
+
+                    if (!typeMismatchReported && !isValueCompatible(property, value)) {
+                        typeMismatchReported = true;
                         diagnostics.push({
-                            code: 'UNIQUENESS_BEST_EFFORT',
+                            code: 'TYPE_MISMATCH',
                             severity: 'warning',
                             classifierName: classifier.name,
                             propertyName: property.name,
-                            message: `Could not generate a unique value for ${classifier.name}.${property.name}; a duplicate was kept.`
+                            message: `Generated value "${value}" is not compatible with type ${property.typeName ?? property.typeKind} of ${classifier.name}.${property.name}.`
                         });
                     }
-                    if (value !== undefined) {
-                        seen.add(value);
-                    }
+
+                    slotValues.push(value);
+                    seen?.add(value);
+                }
+                if (seen) {
                     seenValuesByProperty.set(property.name, seen);
                 }
 
-                if (value === undefined) {
+                if (slotValues.length === 0) {
                     if (property.required) {
                         diagnostics.push({
                             code: 'REQUIRED_PROPERTY_SKIPPED',
@@ -299,17 +348,7 @@ export function buildGeneration(classifiers: readonly ClassifierView[], config: 
                     continue;
                 }
 
-                if (!isValueCompatible(property, value)) {
-                    diagnostics.push({
-                        code: 'TYPE_MISMATCH',
-                        severity: 'warning',
-                        classifierName: classifier.name,
-                        propertyName: property.name,
-                        message: `Generated value "${value}" is not compatible with type ${property.typeName ?? property.typeKind} of ${classifier.name}.${property.name}.`
-                    });
-                }
-
-                slots.push(buildSlot(property, value, idFactory));
+                slots.push(buildSlot(property, slotValues, idFactory));
             }
 
             patch.push({

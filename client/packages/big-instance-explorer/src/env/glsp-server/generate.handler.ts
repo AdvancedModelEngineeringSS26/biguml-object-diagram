@@ -143,7 +143,9 @@ function resolvePropertyView(property: Property): PropertyView {
         enumLiterals: category === 'enumeration' && isEnumeration(typeRef) ? (typeRef.values ?? []).map(literal => literal.name) : undefined,
         isReadOnly: property.isReadOnly === true,
         isUnique: property.isUnique === true,
-        required: bounds.lower >= 1
+        required: bounds.lower >= 1,
+        lowerBound: bounds.lower,
+        upperBound: bounds.upper
     };
 }
 
