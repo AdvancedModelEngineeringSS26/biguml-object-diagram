@@ -52,12 +52,20 @@ export interface PreviewInstanceSample {
     slots: PreviewSlotSample[];
 }
 
+/** Complete per-classifier instance count (always full, even when the sample is truncated). */
+export interface PreviewClassifierCount {
+    classifierName: string;
+    instanceCount: number;
+}
+
 export interface GenerationResultSummary {
     instanceCount: number;
     slotCount: number;
     linkCount: number;
     diagnostics: GenerationDiagnosticSummary[];
-    /** Dry-run sample of the instances that would be created (preview). */
+    /** Complete count of instances per classifier (the authoritative "what will be created"). */
+    perClassifier: PreviewClassifierCount[];
+    /** Dry-run **sample** of the instances that would be created — stratified (a few per classifier), truncated. */
     sample: PreviewInstanceSample[];
 }
 
@@ -194,7 +202,7 @@ export namespace GenerateInstancesPreviewResponse {
         return {
             kind: KIND,
             responseId: options?.responseId ?? '',
-            summary: options?.summary ?? { instanceCount: 0, slotCount: 0, linkCount: 0, diagnostics: [], sample: [] }
+            summary: options?.summary ?? { instanceCount: 0, slotCount: 0, linkCount: 0, diagnostics: [], perClassifier: [], sample: [] }
         };
     }
 }

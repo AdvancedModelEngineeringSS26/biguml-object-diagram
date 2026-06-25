@@ -365,15 +365,24 @@ function run(config: GenerationConfig, modelState: DiagramModelState): RunResult
     return { result, links };
 }
 
-const PREVIEW_SAMPLE_LIMIT = 10;
+/** Preview sample bounds: a few per classifier (so every classifier shows), capped overall. */
+const PREVIEW_SAMPLE_PER_CLASSIFIER = 5;
+const PREVIEW_SAMPLE_MAX_TOTAL = 25;
 
 function summarize({ result, links }: RunResult): GenerationResultSummary {
+    // Complete per-classifier counts (authoritative), preserving generation order.
+    const perClassifierCounts = new Map<string, number>();
+    for (const instance of result.instances) {
+        perClassifierCounts.set(instance.classifierName, (perClassifierCounts.get(instance.classifierName) ?? 0) + 1);
+    }
+
     return {
         instanceCount: result.instances.length,
         slotCount: result.instances.reduce((sum, instance) => sum + instance.slotCount, 0),
         linkCount: links.links.length,
         diagnostics: [...result.diagnostics, ...links.diagnostics].map(d => ({ code: d.code, severity: d.severity, message: d.message })),
-        sample: extractPreviewSample(result.patch, PREVIEW_SAMPLE_LIMIT)
+        perClassifier: [...perClassifierCounts].map(([classifierName, instanceCount]) => ({ classifierName, instanceCount })),
+        sample: extractPreviewSample(result.patch, PREVIEW_SAMPLE_PER_CLASSIFIER, PREVIEW_SAMPLE_MAX_TOTAL)
     };
 }
 

@@ -112,14 +112,24 @@ export interface PreviewInstanceSample {
 }
 
 /**
- * Builds a human-readable sample (up to `limit` instances) from a generation patch,
- * for the dry-run preview. Reads the instance add operations produced by
- * {@link buildGeneration} without touching the model.
+ * Builds a human-readable, **stratified** sample for the dry-run preview: up to
+ * `perClassifierLimit` instances *per classifier* (so every selected/expanded classifier is
+ * represented, not just the first one), bounded by `maxTotal` overall. Reads the instance add
+ * operations produced by {@link buildGeneration} without touching the model.
+ *
+ * Rationale: a flat "first N" sample is biased toward whichever classifier was generated first;
+ * stratified sampling reflects all groups while staying small relative to the whole. The complete
+ * counts are reported separately (see the handler's summary), so the sample is illustrative only.
  */
-export function extractPreviewSample(patch: readonly PatchOperation[], limit: number): PreviewInstanceSample[] {
+export function extractPreviewSample(
+    patch: readonly PatchOperation[],
+    perClassifierLimit: number,
+    maxTotal: number
+): PreviewInstanceSample[] {
     const samples: PreviewInstanceSample[] = [];
+    const perClassifierCount = new Map<string, number>();
     for (const operation of patch) {
-        if (samples.length >= limit) {
+        if (samples.length >= maxTotal) {
             break;
         }
         if (operation.path !== '/diagram/entities/-') {
@@ -130,9 +140,15 @@ export function extractPreviewSample(patch: readonly PatchOperation[], limit: nu
             classifier?: { $refText?: string };
             slots?: { name?: string; values?: { value?: string }[] }[];
         };
+        const classifierName = instance.classifier?.$refText ?? '';
+        const used = perClassifierCount.get(classifierName) ?? 0;
+        if (used >= perClassifierLimit) {
+            continue;
+        }
+        perClassifierCount.set(classifierName, used + 1);
         samples.push({
             name: instance.name ?? '',
-            classifierName: instance.classifier?.$refText ?? '',
+            classifierName,
             slots: (instance.slots ?? []).map(slot => ({
                 feature: slot.name ?? '',
                 value: (slot.values ?? []).map(literal => literal.value ?? '').join(', ')
