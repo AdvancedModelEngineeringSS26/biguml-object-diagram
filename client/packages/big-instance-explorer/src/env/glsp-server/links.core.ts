@@ -38,6 +38,12 @@ export interface AssociationView {
     targetLowerBound?: number;
     /** Upper multiplicity at the target end; `undefined` means unbounded (`*`). */
     targetUpperBound?: number;
+    /**
+     * Upper multiplicity at the *source* end — i.e. how many sources may link to a single target.
+     * Enforced as a per-target capacity so e.g. a 1:1 association never shares a target. `undefined`
+     * means unbounded (`*`).
+     */
+    sourceUpperBound?: number;
 }
 
 export interface LinkPlanOptions {
@@ -110,6 +116,17 @@ function pickDistinct<T>(rng: Rng, items: readonly T[], count: number): T[] {
         pool.splice(index, 1);
     }
     return result;
+}
+
+/**
+ * Picks up to `count` distinct elements, preferring those linked fewest times so far, so links are
+ * spread evenly across the available targets (no clustering, no stale targets while capacity remains).
+ * Ties are broken with the seeded RNG for reproducible fairness.
+ */
+function pickLeastUsed<T extends { id: string }>(rng: Rng, items: readonly T[], count: number, usage: ReadonlyMap<string, number>): T[] {
+    const shuffled = pickDistinct(rng, items, items.length); // full seeded shuffle = fair tiebreak
+    shuffled.sort((left, right) => (usage.get(left.id) ?? 0) - (usage.get(right.id) ?? 0)); // stable in Node ⇒ least-used first
+    return shuffled.slice(0, Math.min(count, shuffled.length));
 }
 
 function buildLink(
@@ -189,26 +206,32 @@ export function planLinks(
 
         const lower = association.targetLowerBound ?? 0;
         const upper = association.targetUpperBound ?? Number.POSITIVE_INFINITY;
+        // Source-end multiplicity = how many sources may link a single target (e.g. 1 for a 1:1
+        // association ⇒ a target is never shared). Enforced as a per-target capacity.
+        const sourceCap = association.sourceUpperBound ?? Number.POSITIVE_INFINITY;
+        const targetUsage = new Map<string, number>(); // targetId -> sources linked so far
 
         for (const source of sources) {
-            // A target may be shared across sources, but never link an instance to itself.
-            const candidates = targets.filter(target => target.id !== source.id);
+            // Never link an instance to itself; skip targets that have reached their source-end capacity.
+            const candidates = targets.filter(target => target.id !== source.id && (targetUsage.get(target.id) ?? 0) < sourceCap);
             const maxLinks = Math.min(upper, candidates.length);
             // Effective lower honours the association's lower bound and the requested
             // minimum-per-source, but can never exceed the upper bound / available targets.
             const minLinks = Math.min(Math.max(lower, minPerSource), maxLinks);
             const count = minLinks >= maxLinks ? maxLinks : rng.int(minLinks, maxLinks);
 
-            const chosen = pickDistinct(rng, candidates, count);
+            // Balanced: prefer the least-linked targets so links spread evenly across instances.
+            const chosen = pickLeastUsed(rng, candidates, count, targetUsage);
             if (chosen.length < lower) {
                 diagnostics.push({
                     code: 'MULTIPLICITY_BEST_EFFORT',
                     severity: 'warning',
-                    message: `Association '${association.name ?? association.id}': could only create ${chosen.length} of the required ${lower} link(s) for instance '${source.name}' (not enough target instances).`
+                    message: `Association '${association.name ?? association.id}': could only create ${chosen.length} of the required ${lower} link(s) for instance '${source.name}' (not enough eligible target instances).`
                 });
             }
 
             for (const target of chosen) {
+                targetUsage.set(target.id, (targetUsage.get(target.id) ?? 0) + 1);
                 const id = idFactory();
                 patch.push({ op: 'add', path: '/diagram/relations/-', value: buildLink(association, source, target, id) });
                 links.push({

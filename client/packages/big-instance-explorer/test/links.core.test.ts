@@ -263,6 +263,35 @@ describe('planLinks', () => {
         }
     });
 
+    it('spreads links evenly across targets (balanced: no clustering, no stale targets)', () => {
+        // 6 employees, 3 companies, each employee -> exactly one company (target upper 1).
+        const employees = Array.from({ length: 6 }, (_, i) => inst(`e${i + 1}`, `e${i + 1}`, 'Employee'));
+        const companies = [inst('c1', 'c1', 'Company'), inst('c2', 'c2', 'Company'), inst('c3', 'c3', 'Company')];
+        const worksFor = assoc({ id: 'wf', name: 'worksFor', sourceClassifierId: 'Employee', targetClassifierId: 'Company', targetLowerBound: 1, targetUpperBound: 1 });
+        const result = planLinks([...employees, ...companies], [worksFor], { depth: 1, seed: 1, minPerSource: 1, idFactory: counter() });
+        const perTarget = new Map<string, number>();
+        for (const op of linkOps(result.patch)) {
+            perTarget.set(op.target.ref.__id, (perTarget.get(op.target.ref.__id) ?? 0) + 1);
+        }
+        assert.equal(linkOps(result.patch).length, 6);
+        // 6 links over 3 targets, balanced ⇒ exactly 2 each (no stale, no clustering).
+        assert.deepEqual([...perTarget.values()].sort(), [2, 2, 2], `uneven distribution: ${JSON.stringify([...perTarget])}`);
+    });
+
+    it('enforces the source-end multiplicity (1:1: a target is never shared)', () => {
+        const employees = Array.from({ length: 4 }, (_, i) => inst(`e${i + 1}`, `e${i + 1}`, 'Employee'));
+        const addresses = [inst('a1', 'a1', 'Address'), inst('a2', 'a2', 'Address'), inst('a3', 'a3', 'Address')];
+        // 1:1 — each person has one address, each address belongs to one person (sourceUpperBound 1).
+        const hasAddress = assoc({ id: 'ha', name: 'hasAddress', sourceClassifierId: 'Employee', targetClassifierId: 'Address', targetLowerBound: 1, targetUpperBound: 1, sourceUpperBound: 1 });
+        const result = planLinks([...employees, ...addresses], [hasAddress], { depth: 1, seed: 2, minPerSource: 1, idFactory: counter() });
+        const ops = linkOps(result.patch);
+        const targetsUsed = ops.map(op => op.target.ref.__id);
+        // Only 3 addresses, each usable once ⇒ 3 links, all distinct targets; 4th employee unlinked + warning.
+        assert.equal(ops.length, 3);
+        assert.equal(new Set(targetsUsed).size, 3, `a target was shared under 1:1: ${JSON.stringify(targetsUsed)}`);
+        assert.ok(result.diagnostics.some(d => d.code === 'MULTIPLICITY_BEST_EFFORT'), 'expected a warning for the unlinkable source');
+    });
+
     it('without sourceIds, every instance can act as a source (back-compat)', () => {
         const result = planLinks([...persons, ...addresses], [assoc({ targetLowerBound: 1, targetUpperBound: 1 })], {
             depth: 1,

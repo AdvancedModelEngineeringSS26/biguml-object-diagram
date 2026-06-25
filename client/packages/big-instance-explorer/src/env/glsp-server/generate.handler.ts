@@ -193,6 +193,7 @@ function resolveAssociationViews(modelState: DiagramModelState): AssociationView
         // actually have generated instances, so including every association is safe and
         // avoids dropping links when the user didn't tick both ends.
         const bounds = parseMultiplicity((relation as Association).targetMultiplicity);
+        const sourceBounds = parseMultiplicity((relation as Association).sourceMultiplicity);
         // Attach the association to every instantiable classifier that is the source itself or
         // inherits it from a supertype — so inherited associations (e.g. Person.hasAddress on
         // Employee/Manager) are offered and linked for the concrete subtypes.
@@ -205,7 +206,8 @@ function resolveAssociationViews(modelState: DiagramModelState): AssociationView
                     sourceClassifierId: node.__id,
                     targetClassifierId: target.__id,
                     targetLowerBound: bounds.lower,
-                    targetUpperBound: bounds.upper
+                    targetUpperBound: bounds.upper,
+                    sourceUpperBound: sourceBounds.upper
                 });
             }
         }
