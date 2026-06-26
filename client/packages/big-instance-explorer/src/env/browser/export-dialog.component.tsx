@@ -6,7 +6,7 @@
  *
  * SPDX-License-Identifier: MIT
  **********************************************************************************/
-import { useEffect, useMemo, useState, type CSSProperties, type ChangeEvent, type ReactElement } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type ReactElement } from 'react';
 import type { ClassifierGroup, ExportScope, ExportTemplateSummary, InstanceSummary } from '../common/index.js';
 import { checkboxStyle, primaryButtonStyle, withDisabled } from './webview-styles.js';
 
