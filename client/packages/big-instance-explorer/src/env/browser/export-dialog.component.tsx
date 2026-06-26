@@ -8,6 +8,7 @@
  **********************************************************************************/
 import { useEffect, useMemo, useState, type CSSProperties, type ChangeEvent, type ReactElement } from 'react';
 import type { ClassifierGroup, ExportScope, ExportTemplateSummary, InstanceSummary } from '../common/index.js';
+import { primaryButtonStyle, withDisabled } from './webview-styles.js';
 
 interface ExportDialogProps {
     classifierGroups: ClassifierGroup[];
@@ -164,10 +165,15 @@ export function ExportDialog(props: ExportDialogProps): ReactElement {
                     {props.statusMessage ? <div style={statusStyle}>{props.statusMessage}</div> : null}
 
                     <div style={buttonRowStyle}>
-                        <button disabled={exportDisabled} onClick={handleExport} type='button'>
+                        <button disabled={exportDisabled} onClick={handleExport} style={withDisabled(primaryButtonStyle, exportDisabled)} type='button'>
                             Render Preview
                         </button>
-                        <button disabled={!props.result || props.isSaving} onClick={() => props.onSave({ suggestedFileName })} type='button'>
+                        <button
+                            disabled={!props.result || props.isSaving}
+                            onClick={() => props.onSave({ suggestedFileName })}
+                            style={withDisabled(primaryButtonStyle, !props.result || props.isSaving)}
+                            type='button'
+                        >
                             {props.isSaving ? 'Saving…' : 'Save Export…'}
                         </button>
                     </div>

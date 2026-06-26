@@ -15,6 +15,7 @@ import {
     type GenerationResultSummary,
     type GenerationStrategyKind
 } from '../common/index.js';
+import { checkboxStyle, primaryButtonStyle, secondaryButtonStyle, withDisabled } from './webview-styles.js';
 
 interface GenerateDialogProps {
     classifiers: GeneratableClassifier[];
@@ -139,6 +140,7 @@ export function GenerateDialog(props: GenerateDialogProps): ReactElement {
                                 <input
                                     checked={selectedIds.includes(classifier.classifierId)}
                                     onChange={() => toggleClassifier(classifier.classifierId)}
+                                    style={checkboxStyle}
                                     type='checkbox'
                                 />
                                 <span>{classifier.classifierName}</span>
@@ -233,6 +235,7 @@ export function GenerateDialog(props: GenerateDialogProps): ReactElement {
                     <input
                         checked={linkWithinBatchOnly}
                         onChange={event => setLinkWithinBatchOnly(event.target.checked)}
+                        style={checkboxStyle}
                         type='checkbox'
                     />
                     <span>Link only within this batch (connect the generated instances to each other)</span>
@@ -280,13 +283,13 @@ export function GenerateDialog(props: GenerateDialogProps): ReactElement {
             </label>
 
             <div style={buttonRowStyle}>
-                <button disabled={invalid} onClick={() => props.onPreview(config)} type='button'>
+                <button disabled={invalid} onClick={() => props.onPreview(config)} style={withDisabled(primaryButtonStyle, invalid)} type='button'>
                     Preview
                 </button>
-                <button disabled={invalid} onClick={() => props.onGenerate(config)} type='button'>
+                <button disabled={invalid} onClick={() => props.onGenerate(config)} style={withDisabled(primaryButtonStyle, invalid)} type='button'>
                     Generate
                 </button>
-                <button onClick={props.onClose} type='button'>
+                <button onClick={props.onClose} style={secondaryButtonStyle} type='button'>
                     Cancel
                 </button>
             </div>
