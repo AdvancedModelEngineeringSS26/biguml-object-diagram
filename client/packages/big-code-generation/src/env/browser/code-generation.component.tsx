@@ -16,6 +16,7 @@ import {
 } from '@borkdominik-biguml/big-code-generation';
 import { VSCodeContext } from '@borkdominik-biguml/big-components';
 import { useCallback, useContext, useEffect, useState, type ReactElement } from 'react';
+import { buttonStyle, secondaryButtonStyle, withDisabled } from './webview-styles.js';
 import { JavaCodeGenerationConfig } from './config-java.component.js';
 import { TypescriptCodeGenerationConfig } from './config-typescript.component.js';
 
@@ -72,7 +73,7 @@ export function CodeGeneration(): ReactElement {
             </div>
             <div style={{ marginBottom: '8px' }}>
                 <span>Selected TemplateFile: {options.templateFile ?? 'Default'}</span>
-                <button onClick={selectTemplateFile} style={{ marginLeft: '8px' }}>Select Template File</button>
+                <button onClick={selectTemplateFile} style={secondaryButtonStyle}>Select Template File</button>
             </div>
             {language === 'java' && (
                 <JavaCodeGenerationConfig
@@ -89,7 +90,7 @@ export function CodeGeneration(): ReactElement {
                 />
             )}
             <div>
-                <button onClick={generateCode} style={{ marginLeft: '8px' }} disabled={isGenerationDisabled}>Generate</button>
+                <button onClick={generateCode} style={withDisabled(buttonStyle, isGenerationDisabled)} disabled={isGenerationDisabled}>Generate</button>
             </div>
         </div>
     );

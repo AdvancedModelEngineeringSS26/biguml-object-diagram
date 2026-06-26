@@ -8,7 +8,7 @@
  **********************************************************************************/
 import { useEffect, useMemo, useState, type CSSProperties, type ChangeEvent, type ReactElement } from 'react';
 import type { ClassifierGroup, ExportScope, ExportTemplateSummary, InstanceSummary } from '../common/index.js';
-import { primaryButtonStyle, withDisabled } from './webview-styles.js';
+import { checkboxStyle, primaryButtonStyle, withDisabled } from './webview-styles.js';
 
 interface ExportDialogProps {
     classifierGroups: ClassifierGroup[];
@@ -69,10 +69,8 @@ export function ExportDialog(props: ExportDialogProps): ReactElement {
     const classifierDisabled = scope === 'byClassifier' && classifierIds.length === 0;
     const exportDisabled = !selectedTemplate || selectionDisabled || classifierDisabled;
 
-    const handleClassifierSelection = (event: ChangeEvent<HTMLSelectElement>) => {
-        const next = Array.from(event.target.selectedOptions).map(option => option.value);
-        setClassifierIds(next);
-    };
+    const toggleClassifier = (id: string): void =>
+        setClassifierIds(current => (current.includes(id) ? current.filter(value => value !== id) : [...current, id]));
 
     const handleExport = () => {
         if (!selectedTemplate) {
@@ -124,16 +122,26 @@ export function ExportDialog(props: ExportDialogProps): ReactElement {
                     </label>
 
                     {scope === 'byClassifier' ? (
-                        <label style={fieldStyle}>
+                        <div style={fieldStyle}>
                             <span>Classifiers</span>
-                            <select multiple onChange={handleClassifierSelection} size={Math.min(Math.max(props.classifierGroups.length, 3), 8)} value={classifierIds}>
-                                {props.classifierGroups.map(group => (
-                                    <option key={group.classifierId} value={group.classifierId}>
-                                        {group.classifierName} ({group.instances.length})
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
+                            <div style={classifierPanelStyle}>
+                                {props.classifierGroups.length > 0 ? (
+                                    props.classifierGroups.map(group => (
+                                        <label key={group.classifierId} style={checkboxRowStyle}>
+                                            <input
+                                                checked={classifierIds.includes(group.classifierId)}
+                                                onChange={() => toggleClassifier(group.classifierId)}
+                                                style={checkboxStyle}
+                                                type='checkbox'
+                                            />
+                                            <span>{group.classifierName} ({group.instances.length})</span>
+                                        </label>
+                                    ))
+                                ) : (
+                                    <div style={mutedStyle}>No classifiers available.</div>
+                                )}
+                            </div>
+                        </div>
                     ) : null}
 
                     {scope === 'selection' ? (
@@ -252,3 +260,16 @@ const resultStyle: CSSProperties = {
     resize: 'vertical',
     fontFamily: 'var(--vscode-editor-font-family)'
 };
+
+const classifierPanelStyle: CSSProperties = {
+    border: '1px solid var(--vscode-panel-border)',
+    borderRadius: '4px',
+    padding: '8px',
+    display: 'grid',
+    gap: '4px',
+    maxHeight: '140px',
+    overflow: 'auto'
+};
+
+const checkboxRowStyle: CSSProperties = { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' };
+const mutedStyle: CSSProperties = { opacity: 0.7, fontSize: '11px' };

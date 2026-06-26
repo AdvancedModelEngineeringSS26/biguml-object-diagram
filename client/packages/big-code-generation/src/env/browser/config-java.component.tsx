@@ -13,6 +13,7 @@ import {
     SelectSourceCodeFolderActionResponse,
     type JavaCodeGenerationOptions
 } from '@borkdominik-biguml/big-code-generation';
+import { secondaryButtonStyle } from './webview-styles.js';
 
 interface JavaCodeGenerationConfigProps {
     options: JavaCodeGenerationOptions;
@@ -48,7 +49,7 @@ export function JavaCodeGenerationConfig({
         <>
             <div style={{ marginBottom: '8px' }}>
                 <span>Selected Folder: {options.folder ?? 'None'}</span>
-                <button onClick={selectFolder} style={{ marginLeft: '8px' }}>Select Folder</button>
+                <button onClick={selectFolder} style={secondaryButtonStyle}>Select Folder</button>
             </div>
             <div style={{ marginBottom: '8px' }}>
                 <label>
