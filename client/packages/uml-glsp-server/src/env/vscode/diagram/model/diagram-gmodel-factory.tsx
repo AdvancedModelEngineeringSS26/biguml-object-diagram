@@ -277,7 +277,9 @@ export class UmlDiagramGModelFactory implements GModelFactory {
         if (isInstanceLink(edge)) {
             // InstanceLink: plain solid line, optional name label
             if (edge.name) {
-                labelChild = <GLabelElement type={CommonModelTypes.LABEL_TEXT} text={edge.name} />;
+                const nameLabel = GLabelElement({ type: CommonModelTypes.LABEL_EDGE_NAME, text: edge.name });
+                nameLabel.edgePlacement = { position: 0.5, offset: 10, side: 'top', rotate: false };
+                labelChild = nameLabel;
             }
         } else if (isAssociation(edge)) {
             if (edge.sourceAggregation === 'COMPOSITE') {

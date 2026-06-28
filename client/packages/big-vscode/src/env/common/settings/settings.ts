@@ -37,5 +37,8 @@ export const VSCodeSettings = {
     },
     advancedSearch: {
         viewType: 'bigUML.panel.advancedsearch'
+    },
+    objectToClass: {
+        viewType: 'bigUML.panel.object-to-class'
     }
 } as const;

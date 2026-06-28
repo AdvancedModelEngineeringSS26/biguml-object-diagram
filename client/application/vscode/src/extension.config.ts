@@ -10,6 +10,7 @@ import { advancedSearchModule } from '@borkdominik-biguml/big-advancedsearch/vsc
 import { codeGenerationModule } from '@borkdominik-biguml/big-code-generation/vscode';
 import { instanceExplorerModule } from '@borkdominik-biguml/big-instance-explorer/vscode';
 import { minimapModule } from '@borkdominik-biguml/big-minimap/vscode';
+import { transformationPreviewModule } from '@borkdominik-biguml/big-object-to-class/vscode';
 import { outlineModule } from '@borkdominik-biguml/big-outline/vscode';
 import { propertyPaletteModule } from '@borkdominik-biguml/big-property-palette/vscode';
 import { revisionManagementModule } from '@borkdominik-biguml/big-revision-management/vscode';
@@ -40,6 +41,7 @@ export function createContainer(
         advancedSearchModule(VSCodeSettings.advancedSearch.viewType),
         codeGenerationModule(VSCodeSettings.codeGeneration.viewType),
         revisionManagementModule(VSCodeSettings.revisionManagement.viewType),
+        transformationPreviewModule(VSCodeSettings.objectToClass.viewType),
         themeModule
     );
 

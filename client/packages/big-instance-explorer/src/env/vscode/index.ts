@@ -9,3 +9,5 @@
 
 export * from './instance-explorer.module.js';
 export * from './instance-explorer.webview-view-provider.js';
+export * from './export.command.js';
+export * from './export.service.js';

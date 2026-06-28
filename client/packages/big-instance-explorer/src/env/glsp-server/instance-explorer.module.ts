@@ -16,10 +16,15 @@ import {
     UpdateInstanceLinkEndOperationHandler,
     UpdateInstanceSlotValuesOperationHandler
 } from './instance-explorer.handler.js';
+import { ExportInstancesActionHandler } from './export.handler.js';
+import { GeneratableClassifiersActionHandler, GenerateInstancesOperationHandler, GenerateInstancesPreviewActionHandler } from './generate.handler.js';
 
 class InstanceExplorerDiagramFeatureModule extends DiagramFeatureModule {
     override configureActionHandlers(binding: InstanceMultiBinding<ActionHandlerConstructor>): void {
         binding.add(RequestInstanceExplorerDataActionHandler);
+        binding.add(ExportInstancesActionHandler);
+        binding.add(GenerateInstancesPreviewActionHandler);
+        binding.add(GeneratableClassifiersActionHandler);
     }
 
     override configureOperationHandlers(binding: InstanceMultiBinding<OperationHandlerConstructor>): void {
@@ -27,6 +32,7 @@ class InstanceExplorerDiagramFeatureModule extends DiagramFeatureModule {
         binding.add(UpdateInstanceSlotValuesOperationHandler);
         binding.add(UpdateInstanceLinkEndOperationHandler);
         binding.add(CreateInstanceLinkOperationHandler);
+        binding.add(GenerateInstancesOperationHandler);
     }
 }
 

@@ -44,7 +44,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "templates"
   ],
   "scripts": {
     "build": "npm run clean && npm run compile && npm run bundle && npm run lint",
@@ -53,6 +54,8 @@
     "compile": "tsc -b",
     "lint": "eslint -c ./eslint.config.js",
     "lint:fix": "npm run lint -- --fix",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "test:watch": "node --import tsx --test --watch \"test/**/*.test.ts\"",
     "tsc": "tsc",
     "watch": "concurrently --kill-others 'npm run watch:compile' 'npm run watch:bundle'",
     "watch:bundle": "npm run bundle -- --watch",
@@ -67,6 +70,8 @@
     "@eclipse-glsp/protocol": "*",
     "@eclipse-glsp/server": "*",
     "@eclipse-glsp/vscode-integration-webview": "*",
+    "@faker-js/faker": "^9.3.0",
+    "eta": "^3.5.0",
     "vscode-messenger-common": "^0.4.5"
   },
   "devDependencies": {

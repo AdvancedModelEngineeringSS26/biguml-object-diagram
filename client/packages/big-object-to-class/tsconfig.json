@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.node.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    "outDir": "build",
+    "rootDir": "src",
+    "jsx": "react-jsx",         
+    "lib": ["ESNext", "DOM"],    
+    "noImplicitAny": false
+  },
+  "include": ["src/env/common", "src/env/vscode", "src/env/glsp-client", "src/env/glsp-server", "src/env/browser"]
+}

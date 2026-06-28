@@ -7,11 +7,18 @@
  * SPDX-License-Identifier: MIT
  **********************************************************************************/
 
-import { bindWebviewViewFactory, VscodeFeatureModule } from '@borkdominik-biguml/big-vscode/vscode';
+import { bindWebviewViewFactory, TYPES, VscodeFeatureModule } from '@borkdominik-biguml/big-vscode/vscode';
+import { ExportInstancesCommand } from './export.command.js';
+import { InstanceExportService } from './export.service.js';
 import { InstanceExplorerWebviewViewProvider } from './instance-explorer.webview-view-provider.js';
 
 export function instanceExplorerModule(viewType: string) {
     return new VscodeFeatureModule(context => {
+        context.bind(InstanceExportService).toSelf().inSingletonScope();
+        context.bind(TYPES.OnActivate).toService(InstanceExportService);
+        context.bind(TYPES.OnDispose).toService(InstanceExportService);
+        context.bind(TYPES.Command).to(ExportInstancesCommand);
+
         bindWebviewViewFactory(context, {
             provider: InstanceExplorerWebviewViewProvider,
             options: {

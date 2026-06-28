@@ -12,9 +12,20 @@ import { UpdateOperation } from '@borkdominik-biguml/uml-glsp-server';
 import { CenterAction, DeleteElementOperation, SelectAction, SelectAllAction } from '@eclipse-glsp/protocol';
 import { useContext, useEffect, useState, type ChangeEvent, type KeyboardEvent, type ReactElement } from 'react';
 import {
+    AvailableExportTemplatesResponse,
     CreateClassifierInstanceOperation,
     CreateInstanceLinkOperation,
+    ExportInstancesNotification,
+    ExportInstancesResponse,
+    GeneratableClassifiersResponse,
+    GenerateInstancesOperation,
+    GenerateInstancesPreviewResponse,
     InstanceExplorerDataResponse,
+    RequestExportInstancesAction,
+    RequestGeneratableClassifiersAction,
+    RequestGenerateInstancesPreviewAction,
+    RequestSaveExportedInstancesAction,
+    SaveExportedInstancesResponse,
     UpdateInstanceLinkEndOperation,
     UpdateInstanceSlotValuesOperation,
     type AvailableAssociation,
@@ -24,11 +35,18 @@ import {
     type ClassifierType,
     type DiagnosticSummary,
     type EligibleInstance,
+    type ExportTemplateSummary,
+    type GeneratableAssociation,
+    type GeneratableClassifier,
+    type GenerationConfig,
+    type GenerationResultSummary,
     type InstanceLinkSummary,
     type InstanceSummary,
     type ManyToManyRelationSection,
     type SlotSummary
 } from '../common/index.js';
+import { ExportDialog } from './export-dialog.component.js';
+import { GenerateDialog } from './generate-dialog.component.js';
 
 type EditTarget = 'slot' | 'instance' | 'classifier';
 
@@ -56,7 +74,7 @@ interface CreateLinkState {
 const AVAILABLE_SECTION_KEY = '__available_to_instantiate__';
 
 export function InstanceExplorer(): ReactElement {
-    const { clientId, dispatchAction, listenAction } = useContext(VSCodeContext);
+    const { clientId, dispatchAction, listenAction, listenNotification } = useContext(VSCodeContext);
     const [classifierGroups, setClassifierGroups] = useState<ClassifierGroup[]>([]);
     const [unclassified, setUnclassified] = useState<InstanceSummary[]>([]);
     const [manyToManyRelations, setManyToManyRelations] = useState<ManyToManyRelationSection[]>([]);
@@ -69,12 +87,54 @@ export function InstanceExplorer(): ReactElement {
     const [expandedInstances, setExpandedInstances] = useState<Record<string, boolean>>({});
     const [editState, setEditState] = useState<EditState | undefined>();
     const [linkEditState, setLinkEditState] = useState<LinkEditState | undefined>();
+    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+    const [selectedDiagramInstanceIds, setSelectedDiagramInstanceIds] = useState<string[]>([]);
+    const [templates, setTemplates] = useState<ExportTemplateSummary[]>([]);
+    const [workspaceTemplateDirectory, setWorkspaceTemplateDirectory] = useState<string | null>(null);
+    const [exportResult, setExportResult] = useState('');
+    const [exportStatusMessage, setExportStatusMessage] = useState<string | undefined>();
+    const [isSavingExport, setIsSavingExport] = useState(false);
     const [createLinkState, setCreateLinkState] = useState<CreateLinkState | undefined>();
     const [selectedInstanceId, setSelectedInstanceId] = useState<string | undefined>();
+    const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
+    const [generatePreview, setGeneratePreview] = useState<GenerationResultSummary | undefined>();
+    const [generatableClassifiers, setGeneratableClassifiers] = useState<GeneratableClassifier[]>([]);
+    const [generatableAssociations, setGeneratableAssociations] = useState<GeneratableAssociation[]>([]);
 
     useEffect(() => {
         listenAction(action => {
             if (!InstanceExplorerDataResponse.is(action)) {
+                if (AvailableExportTemplatesResponse.is(action)) {
+                    setTemplates(action.templates);
+                    setWorkspaceTemplateDirectory(action.workspaceTemplateDirectory ?? null);
+                    return;
+                }
+
+                if (ExportInstancesResponse.is(action)) {
+                    if (action.success) {
+                        setExportResult(action.content ?? '');
+                    }
+                    setExportStatusMessage(action.success ? 'Preview rendered successfully.' : action.message ?? 'Export failed.');
+                    return;
+                }
+
+                if (SaveExportedInstancesResponse.is(action)) {
+                    setIsSavingExport(false);
+                    setExportStatusMessage(action.success ? `Export saved to ${action.filePath}.` : action.message ?? 'Could not save export.');
+                    return;
+                }
+
+                if (GenerateInstancesPreviewResponse.is(action)) {
+                    setGeneratePreview(action.summary);
+                    return;
+                }
+
+                if (GeneratableClassifiersResponse.is(action)) {
+                    setGeneratableClassifiers(action.classifiers);
+                    setGeneratableAssociations(action.associations);
+                    return;
+                }
+
                 return;
             }
 
@@ -82,8 +142,25 @@ export function InstanceExplorer(): ReactElement {
             setUnclassified(action.unclassified);
             setManyToManyRelations(action.manyToManyRelations ?? []);
             setAvailableForInstantiation(action.availableForInstantiation ?? { classifiers: [], associations: [] });
+            // The diagram/model just changed (e.g. a different .uml was opened): drop transient state
+            // that referenced the previous diagram so nothing stale is shown. The generatable
+            // classifiers are refreshed by the provider (see requestData), so they replace themselves.
+            setGeneratePreview(undefined);
+            setEditState(undefined);
+            setLinkEditState(undefined);
+            setSelectedInstanceId(undefined);
         });
     }, [listenAction]);
+
+    useEffect(() => {
+        listenNotification(ExportInstancesNotification.OpenDialog, () => {
+            setIsExportDialogOpen(true);
+            setExportStatusMessage(undefined);
+        });
+        listenNotification(ExportInstancesNotification.SelectionChanged, params => {
+            setSelectedDiagramInstanceIds(params?.selectedElementIds ?? []);
+        });
+    }, [listenNotification]);
 
     useEffect(() => {
         setExpandedGroups(current => {
@@ -370,17 +447,17 @@ export function InstanceExplorer(): ReactElement {
 
         if (clientId) {
             if (current.kind === 'slot') {
-            dispatchAction(
-                UpdateInstanceSlotValuesOperation.create({
+                dispatchAction(
+                    UpdateInstanceSlotValuesOperation.create({
                         slotId: current.targetId,
-                    values: parseValues(current.value)
-                })
-            );
+                        values: parseValues(current.value)
+                    })
+                );
             } else {
                 const trimmed = current.value.trim();
                 if (trimmed.length > 0) {
                     dispatchAction(UpdateOperation.create(current.targetId, 'name', trimmed));
-        }
+                }
             }
         }
 
@@ -446,9 +523,8 @@ export function InstanceExplorer(): ReactElement {
         return (
             <div key={instance.id} className='instance-explorer__instance'>
                 <button
-                    className={`instance-explorer__row instance-explorer__row--instance${
-                        isSelected ? ' instance-explorer__row--selected' : ''
-                    }`}
+                    className={`instance-explorer__row instance-explorer__row--instance${isSelected ? ' instance-explorer__row--selected' : ''
+                        }`}
                     onClick={() => selectInstance(instance.id)}
                     type='button'
                 >
@@ -612,21 +688,21 @@ export function InstanceExplorer(): ReactElement {
                                 }}
                             />
                         ) : (
-                        <span
-                            className='instance-explorer__label'
-                            onClick={event => {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                navigateTo(group.classifierId);
-                            }}
+                            <span
+                                className='instance-explorer__label'
+                                onClick={event => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    navigateTo(group.classifierId);
+                                }}
                                 onDoubleClick={event => {
                                     event.preventDefault();
                                     event.stopPropagation();
                                     setEditState({ kind: 'classifier', targetId: group.classifierId, value: group.classifierName });
                                 }}
-                        >
-                            {group.classifierName}
-                        </span>
+                            >
+                                {group.classifierName}
+                            </span>
                         )}
                     </button>
                     <span className='instance-explorer__count'>{group.instances.length}</span>
@@ -760,9 +836,8 @@ export function InstanceExplorer(): ReactElement {
                         type='button'
                     >
                         <span
-                            className={`codicon ${
-                                expanded ? 'codicon-chevron-down' : 'codicon-chevron-right'
-                            } instance-explorer__disclosure`}
+                            className={`codicon ${expanded ? 'codicon-chevron-down' : 'codicon-chevron-right'
+                                } instance-explorer__disclosure`}
                         />
                         <span className='codicon codicon-lightbulb instance-explorer__icon' />
                         <span className='instance-explorer__label'>Available to instantiate</span>
@@ -822,6 +897,13 @@ export function InstanceExplorer(): ReactElement {
     const showEmptyState =
         filteredGroups.length === 0 && filteredUnclassified.length === 0 && filteredManyToMany.length === 0 && !hasAvailable;
 
+    const openGenerateDialog = () => {
+        setGeneratePreview(undefined);
+        // Fetch the instantiable classifiers + their properties for the per-property pattern editor.
+        dispatchAction(RequestGeneratableClassifiersAction.create());
+        setIsGenerateDialogOpen(true);
+    };
+
     return (
         <div className='instance-explorer' onKeyDown={handleRootKeyDown}>
             <header className='instance-explorer__header'>
@@ -833,7 +915,29 @@ export function InstanceExplorer(): ReactElement {
                     type='search'
                     value={searchText}
                 />
+                <button className='instance-explorer__action' onClick={openGenerateDialog} title='Generate test data' type='button'>
+                    <span className='codicon codicon-sparkle' />
+                    <span>Generate Test Data</span>
+                </button>
             </header>
+
+            {isGenerateDialogOpen ? (
+                <GenerateDialog
+                    associations={generatableAssociations}
+                    classifiers={generatableClassifiers}
+                    onClose={() => setIsGenerateDialogOpen(false)}
+                    onGenerate={(config: GenerationConfig) => {
+                        dispatchAction(GenerateInstancesOperation.create(config));
+                        setIsGenerateDialogOpen(false);
+                        setGeneratePreview(undefined);
+                    }}
+                    onPreview={(config: GenerationConfig) => {
+                        dispatchAction(RequestGenerateInstancesPreviewAction.create({ config }));
+                    }}
+                    onConfigChange={() => setGeneratePreview(undefined)}
+                    preview={generatePreview}
+                />
+            ) : null}
 
             <div className='instance-explorer__tree'>
                 {renderAvailableSection()}
@@ -849,9 +953,8 @@ export function InstanceExplorer(): ReactElement {
                                 type='button'
                             >
                                 <span
-                                    className={`codicon ${
-                                        expandedGroups.unclassified ? 'codicon-chevron-down' : 'codicon-chevron-right'
-                                    } instance-explorer__disclosure`}
+                                    className={`codicon ${expandedGroups.unclassified ? 'codicon-chevron-down' : 'codicon-chevron-right'
+                                        } instance-explorer__disclosure`}
                                 />
                                 <span className='codicon codicon-question instance-explorer__icon' />
                                 <span className='instance-explorer__label'>Unclassified</span>
@@ -870,6 +973,44 @@ export function InstanceExplorer(): ReactElement {
                     <div className='instance-explorer__empty'>No matching instances were found in the active diagram.</div>
                 ) : null}
             </div>
+
+            {isExportDialogOpen ? (
+                <ExportDialog
+                    classifierGroups={classifierGroups}
+                    isSaving={isSavingExport}
+                    onClose={() => setIsExportDialogOpen(false)}
+                    onExport={options => {
+                        setExportStatusMessage(undefined);
+                        setExportResult('');
+                        dispatchAction(
+                            RequestExportInstancesAction.create({
+                                action: {
+                                    scope: options.scope,
+                                    classifierIds: options.classifierIds,
+                                    selection: options.selection,
+                                    templateName: options.templateName,
+                                    customTemplateFile: options.customTemplateFile
+                                }
+                            })
+                        );
+                    }}
+                    onSave={({ suggestedFileName }) => {
+                        setIsSavingExport(true);
+                        dispatchAction(
+                            RequestSaveExportedInstancesAction.create({
+                                content: exportResult,
+                                suggestedFileName
+                            })
+                        );
+                    }}
+                    result={exportResult}
+                    selectedInstanceIds={selectedDiagramInstanceIds}
+                    statusMessage={exportStatusMessage}
+                    templates={templates}
+                    unclassified={unclassified}
+                    workspaceTemplateDirectory={workspaceTemplateDirectory}
+                />
+            ) : null}
         </div>
     );
 }
