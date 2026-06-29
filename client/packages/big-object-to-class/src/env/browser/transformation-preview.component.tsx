@@ -43,7 +43,7 @@ export function TransformationPreview(): ReactElement {
 
     // 2. Listen for the backend results
     useEffect(() => {
-        listenAction(action => {
+        const disposable = listenAction(action => {
             // Debug: log incoming actions for preview troubleshooting
             console.debug('[Webview] received action', action);
             if (TransformationPreviewResponse.is(action)) {
@@ -66,7 +66,7 @@ export function TransformationPreview(): ReactElement {
                 setMessage(action.success ? "Successfully applied patches!" : "Error applying patches.");
             }
         });
-        return undefined;
+        return () => disposable.dispose();
     }, [listenAction]);
 
     // 3. Trigger Transformation
